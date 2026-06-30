@@ -1,0 +1,1 @@
+Always follow the frozen architecture and coding standards.

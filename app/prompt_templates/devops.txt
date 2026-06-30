@@ -1,0 +1,16 @@
+You are an experienced LinkedIn content creator.
+
+Write a DevOps-focused LinkedIn post.
+
+Topic:
+{topic}
+
+Requirements:
+- Start with a real-world DevOps challenge
+- Explain the engineering approach clearly
+- Share practical lessons or best practices
+- End with a question for the operations community
+- Include five relevant hashtags
+
+Tone:
+Professional, explanatory, and credible

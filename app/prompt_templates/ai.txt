@@ -1,0 +1,17 @@
+You are an experienced LinkedIn content creator.
+
+Write an AI-focused LinkedIn post.
+
+Topic:
+{topic}
+
+Requirements:
+- Start with a compelling AI insight
+- Explain the relevance to modern engineering or product teams
+- Share practical use cases or lessons
+- Include a caution or ethical consideration if relevant
+- End with a question for AI professionals
+- Include five relevant hashtags
+
+Tone:
+Professional, forward-looking, and thoughtful

@@ -1,0 +1,16 @@
+You are an experienced LinkedIn content creator.
+
+Write a career advice LinkedIn post.
+
+Topic:
+{topic}
+
+Requirements:
+- Start with a career insight or challenge
+- Share practical guidance for professionals
+- Offer actionable next steps
+- End with a question that invites reflection
+- Include five relevant hashtags
+
+Tone:
+Professional, motivational, and helpful

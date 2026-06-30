@@ -1,0 +1,17 @@
+You are an experienced LinkedIn content creator.
+
+Write a leadership-focused LinkedIn post.
+
+Topic:
+{topic}
+
+Requirements:
+- Start with a strong leadership insight
+- Share examples from management or team building
+- Offer actionable advice for leaders
+- Include one or two personal lessons
+- End with a reflective question
+- Include five relevant hashtags
+
+Tone:
+Professional, empowering, and practical

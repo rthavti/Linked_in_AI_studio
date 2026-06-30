@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LinkedIn AI Studio</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>LinkedIn AI Studio</h1>
+    <p>Manage topics, schedule posting, and import Excel data.</p>
+  </header>
+
+  <nav>
+    <button data-section="schedule" class="active">Schedule</button>
+    <button data-section="topics">Topics</button>
+    <button data-section="import">Import</button>
+    <button data-section="generate">Generate</button>
+  </nav>
+
+  <main>
+    <section id="schedule" class="panel active">
+      <h2>Schedule Settings</h2>
+      <form id="schedule-form">
+        <label>
+          <input type="checkbox" name="morning_enabled" /> Morning enabled
+        </label>
+        <label>
+          Morning time
+          <input type="time" name="morning_time" />
+        </label>
+        <label>
+          <input type="checkbox" name="evening_enabled" /> Evening enabled
+        </label>
+        <label>
+          Evening time
+          <input type="time" name="evening_time" />
+        </label>
+        <button type="submit">Save Schedule</button>
+      </form>
+      <div id="schedule-message" class="message"></div>
+    </section>
+
+    <section id="topics" class="panel">
+      <h2>Topics</h2>
+      <form id="topic-form">
+        <input type="text" name="topic" placeholder="Topic" required />
+        <select name="category" required>
+          <option value="AI">AI</option>
+          <option value="DEVOPS">DEVOPS</option>
+          <option value="CLOUD">CLOUD</option>
+          <option value="PYTHON">PYTHON</option>
+          <option value="DATA">DATA</option>
+          <option value="CAREER">CAREER</option>
+          <option value="LINKEDIN">LINKEDIN</option>
+          <option value="AUTOMATION">AUTOMATION</option>
+          <option value="PRODUCTIVITY">PRODUCTIVITY</option>
+          <option value="GENERAL">GENERAL</option>
+        </select>
+        <select name="priority" required>
+          <option value="HIGH">HIGH</option>
+          <option value="MEDIUM" selected>MEDIUM</option>
+          <option value="LOW">LOW</option>
+        </select>
+        <button type="submit">Add Topic</button>
+      </form>
+      <div id="topics-list"></div>
+      <div id="topic-message" class="message"></div>
+    </section>
+
+    <section id="import" class="panel">
+      <h2>Import Topics</h2>
+      <p>Upload an Excel file with columns: Topic, Category, Priority.</p>
+      <form id="import-form">
+        <input type="file" name="file" accept=".xlsx,.xls" required />
+        <button type="submit">Upload</button>
+      </form>
+      <pre id="import-result"></pre>
+    </section>
+
+    <section id="generate" class="panel">
+      <h2>Generate Content</h2>
+      <p>Trigger a LinkedIn post generation from the next pending topic.</p>
+      <button id="generate-button">Generate Now</button>
+      <div id="generate-result" class="message"></div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
