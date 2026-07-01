@@ -57,6 +57,16 @@ class Topic(Base):
         nullable=True,
     )
 
+    media_asset_urn = Column(
+        String(1000),
+        nullable=True,
+    )
+
+    media_mime_type = Column(
+        String(255),
+        nullable=True,
+    )
+
     error_message = Column(
         Text,
         nullable=True,

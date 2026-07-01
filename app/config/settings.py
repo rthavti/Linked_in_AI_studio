@@ -20,6 +20,19 @@ class Settings(BaseSettings):
     TIMEZONE: str = Field("UTC", env="TIMEZONE")
     host: str = Field("127.0.0.1", env="HOST")
     port: int = Field(8000, env="PORT")
+    LINKEDIN_CLIENT_ID: str = Field("", env="LINKEDIN_CLIENT_ID")
+    LINKEDIN_CLIENT_SECRET: str = Field("", env="LINKEDIN_CLIENT_SECRET")
+    LINKEDIN_REDIRECT_URI: str = Field("", env="LINKEDIN_REDIRECT_URI")
+    LINKEDIN_SCOPES: str = Field("", env="LINKEDIN_SCOPES")
+    LINKEDIN_TOKEN_SECRET: str = Field("", env="LINKEDIN_TOKEN_SECRET")
+    LINKEDIN_OAUTH_STATE_TTL_SECONDS: int = Field(
+        600,
+        env="LINKEDIN_OAUTH_STATE_TTL_SECONDS",
+    )
+    PUBLISH_RETRY_DELAY_SECONDS: int = Field(
+        300,
+        env="PUBLISH_RETRY_DELAY_SECONDS",
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -7,6 +7,7 @@ from app.repositories.schedule_repository import ScheduleRepository
 from app.repositories.topic_repository import TopicRepository
 from app.database import SessionLocal
 from app.services.generation_service import GenerationService
+from app.services.publish_service import PublishService
 
 
 scheduler = BackgroundScheduler(
@@ -71,6 +72,11 @@ def scheduled_linkedin_workflow():
     session = SessionLocal()
 
     try:
+        publish_service = PublishService(session)
+        processed = publish_service.process_due_queue()
+        if processed:
+            logger.info("Processed %s queued LinkedIn publish jobs.", processed)
+
         topic_repository = TopicRepository(session)
         topic = topic_repository.get_next_pending()
 

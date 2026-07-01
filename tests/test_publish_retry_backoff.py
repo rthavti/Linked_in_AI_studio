@@ -15,10 +15,17 @@ class FakeLinkedInClient:
     def __init__(self):
         self.should_fail_publish = False
 
-    def publish_post(self, access_token: str, author_urn: str, text: str) -> dict:
+    def publish_post(
+        self,
+        access_token: str,
+        author_urn: str,
+        text: str,
+        visibility: str = "PUBLIC",
+        asset_urn: str | None = None,
+    ) -> dict:
         if self.should_fail_publish:
             raise RuntimeError("LinkedIn publish failed")
-        return {"id": "ugc-post-1"}
+        return {"id": "ugc-post-1", "asset_urn": asset_urn}
 
 
 def create_in_memory_session():

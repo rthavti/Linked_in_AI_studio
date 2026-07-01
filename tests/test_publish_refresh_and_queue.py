@@ -43,13 +43,21 @@ class FakeLinkedInClient:
             "expires_in": 3600,
         }
 
-    def publish_post(self, access_token: str, author_urn: str, text: str) -> dict:
+    def publish_post(
+        self,
+        access_token: str,
+        author_urn: str,
+        text: str,
+        visibility: str = "PUBLIC",
+        asset_urn: str | None = None,
+    ) -> dict:
         if self.should_fail_publish:
             raise RuntimeError("LinkedIn publish failed")
         return {
             "id": "ugc-post-1",
             "author": author_urn,
             "text": text,
+            "asset_urn": asset_urn,
         }
 
 

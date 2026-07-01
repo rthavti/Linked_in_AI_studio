@@ -28,6 +28,8 @@ class TopicRead(BaseModel):
     priority: Priority
     status: TopicStatus
     generated_post: str | None = None
+    media_asset_urn: str | None = None
+    media_mime_type: str | None = None
     error_message: str | None = None
     created_at: datetime
     updated_at: datetime

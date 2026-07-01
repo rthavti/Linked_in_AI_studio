@@ -6,6 +6,7 @@ from app.api.dashboard import router as dashboard_router
 from app.api.ingest import router as ingest_router
 from app.api.schedule import router as schedule_router
 from app.api.topics import router as topics_router
+from app.api.publish import router as publish_router
 
 router = APIRouter()
 
@@ -31,4 +32,8 @@ router.include_router(
 
 router.include_router(
     topics_router,
+)
+
+router.include_router(
+    publish_router,
 )
