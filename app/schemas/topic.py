@@ -21,6 +21,10 @@ class TopicUpdate(BaseModel):
     priority: Priority
 
 
+class TopicContentUpdate(BaseModel):
+    generated_post: str
+
+
 class TopicRead(BaseModel):
     id: int
     topic: str

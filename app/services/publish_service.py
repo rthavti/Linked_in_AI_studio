@@ -136,6 +136,27 @@ class PublishService:
             "latest_account_id": latest.id if latest else None,
         }
 
+    def get_oauth_health(self) -> dict:
+        status = self.get_status()
+        client_id = bool(settings.LINKEDIN_CLIENT_ID.strip())
+        client_secret = bool(settings.LINKEDIN_CLIENT_SECRET.strip())
+        redirect_uri = bool(settings.LINKEDIN_REDIRECT_URI.strip())
+        scopes = bool(settings.LINKEDIN_SCOPES.strip())
+        token_secret = bool((settings.LINKEDIN_TOKEN_SECRET or settings.LINKEDIN_CLIENT_SECRET or '').strip())
+
+        return {
+            "oauth_configured": all([client_id, client_secret, redirect_uri, scopes, token_secret]),
+            "client_id_configured": client_id,
+            "client_secret_configured": client_secret,
+            "redirect_uri_configured": redirect_uri,
+            "scopes_configured": scopes,
+            "token_secret_configured": token_secret,
+            "oauth_state_ttl_seconds": settings.LINKEDIN_OAUTH_STATE_TTL_SECONDS,
+            "retry_delay_seconds": settings.PUBLISH_RETRY_DELAY_SECONDS,
+            "connected": status["connected"],
+            "latest_account_id": status["latest_account_id"],
+        }
+
     def get_accounts(self):
         return self.account_repo.get_all()
 

@@ -7,44 +7,148 @@
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
-  <header>
-    <h1>LinkedIn AI Studio</h1>
-    <p>Manage topics, schedule posting, and import Excel data.</p>
-  </header>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <h1>LinkedIn AI Studio</h1>
+        <p>AI content operations</p>
+      </div>
+      <nav class="sidebar-nav">
+        <button type="button" data-section="home" class="active">🏠 Dashboard</button>
+        <button type="button" data-section="topics">📝 Topics</button>
+        <button type="button" data-section="import">📥 Import</button>
+        <button type="button" data-section="generate">🤖 Generate</button>
+        <button type="button" data-section="history">📜 History</button>
+        <button type="button" data-section="schedule">📅 Scheduler</button>
+        <button type="button" data-section="settings">⚙ Settings</button>
+      </nav>
+    </aside>
 
-  <nav>
-    <button data-section="schedule" class="active">Schedule</button>
-    <button data-section="topics">Topics</button>
-    <button data-section="import">Import</button>
-    <button data-section="generate">Generate</button>
-  </nav>
+    <main>
+    <section id="home" class="panel active">
+      <section class="home-hero">
+        <div>
+          <p class="hero-kicker">AI Studio Control Center</p>
+          <h2>Studio Dashboard</h2>
+          <p class="hero-subtitle">Track content pipeline health, generation quality, and publishing momentum in one place.</p>
+        </div>
+        <div class="hero-health-strip">
+          <div class="hero-health-chip">
+            <span>API</span>
+            <strong id="hero-api-status">--</strong>
+          </div>
+          <div class="hero-health-chip">
+            <span>Database</span>
+            <strong id="hero-db-status">--</strong>
+          </div>
+          <div class="hero-health-chip">
+            <span>OpenAI</span>
+            <strong id="hero-openai-status">--</strong>
+          </div>
+        </div>
+      </section>
+      <div class="kpi-grid">
+        <article class="kpi-card">
+          <p>Total Topics</p>
+          <h3 id="kpi-total-topics">0</h3>
+        </article>
+        <article class="kpi-card">
+          <p>Pending</p>
+          <h3 id="kpi-pending">0</h3>
+          <span id="kpi-pending-delta" class="kpi-delta delta-flat">→ 0 since yesterday</span>
+        </article>
+        <article class="kpi-card">
+          <p>Generated</p>
+          <h3 id="kpi-generated">0</h3>
+          <span id="kpi-generated-delta" class="kpi-delta delta-flat">→ 0 since yesterday</span>
+        </article>
+        <article class="kpi-card">
+          <p>Published</p>
+          <h3 id="kpi-published">0</h3>
+          <span id="kpi-published-delta" class="kpi-delta delta-flat">→ 0 since yesterday</span>
+        </article>
+        <article class="kpi-card">
+          <p>Failed</p>
+          <h3 id="kpi-failed">0</h3>
+        </article>
+      </div>
+      <div class="home-grid">
+        <section class="widget">
+          <h3>Recent Topics</h3>
+          <div id="home-recent-topics"></div>
+        </section>
+        <section class="widget">
+          <h3>Recent Generated Posts</h3>
+          <div id="home-recent-generated"></div>
+        </section>
+        <section class="widget">
+          <h3>System Status</h3>
+          <div id="home-system-status"></div>
+        </section>
+        <section class="widget">
+          <h3>Pipeline Flow</h3>
+          <div id="home-pipeline-strip"></div>
+        </section>
+        <section class="widget">
+          <h3>Topics by Category</h3>
+          <div id="home-category-chart"></div>
+        </section>
+      </div>
+    </section>
 
-  <main>
-    <section id="schedule" class="panel active">
-      <h2>Schedule Settings</h2>
-      <form id="schedule-form">
-        <label>
-          <input type="checkbox" name="morning_enabled" /> Morning enabled
-        </label>
-        <label>
-          Morning time
-          <input type="time" name="morning_time" />
-        </label>
-        <label>
-          <input type="checkbox" name="evening_enabled" /> Evening enabled
-        </label>
-        <label>
-          Evening time
-          <input type="time" name="evening_time" />
-        </label>
-        <button type="submit">Save Schedule</button>
+    <section id="schedule" class="panel">
+      <h2>Scheduler</h2>
+      <form id="schedule-form" action="javascript:void(0);" method="post" onsubmit="return false;">
+        <section class="widget">
+          <h3>Auto Scheduling Defaults (Optional)</h3>
+          <label>
+            <input id="auto-schedule-enabled" type="checkbox" /> Enable auto scheduling windows
+          </label>
+          <div id="auto-schedule-fields" class="auto-schedule-fields">
+            <label>
+              <input type="checkbox" name="morning_enabled" /> Morning enabled
+            </label>
+            <label>
+              Morning time
+              <input type="time" name="morning_time" />
+            </label>
+            <label>
+              <input type="checkbox" name="evening_enabled" /> Evening enabled
+            </label>
+            <label>
+              Evening time
+              <input type="time" name="evening_time" />
+            </label>
+          </div>
+          <button type="submit">Save Auto Defaults</button>
+        </section>
       </form>
       <div id="schedule-message" class="message"></div>
+
+      <div class="schedule-board">
+        <section class="widget">
+          <h3>Schedule Approved Topic</h3>
+          <div class="schedule-single-form">
+            <label for="approved-topic-select">Approved Topic</label>
+            <select id="approved-topic-select">
+              <option value="">Select an approved topic...</option>
+            </select>
+            <label for="schedule-topic-datetime">Publish Date & Time</label>
+            <input id="schedule-topic-datetime" type="datetime-local" />
+            <button id="schedule-topic-button" type="button">Schedule Topic</button>
+          </div>
+        </section>
+      </div>
+
+      <section class="widget">
+        <h3>Scheduled List</h3>
+        <div id="publish-queue-list"></div>
+      </section>
     </section>
 
     <section id="topics" class="panel">
       <h2>Topics</h2>
-      <form id="topic-form">
+      <form id="topic-form" class="inline-form" action="javascript:void(0);" method="post" onsubmit="return false;">
         <input type="text" name="topic" placeholder="Topic" required />
         <select name="category" required>
           <option value="AI">AI</option>
@@ -63,29 +167,177 @@
           <option value="MEDIUM" selected>MEDIUM</option>
           <option value="LOW">LOW</option>
         </select>
-        <button type="submit">Add Topic</button>
+        <button id="add-topic-button" type="button">Add Topic</button>
       </form>
-      <div id="topics-list"></div>
+      <div class="table-controls">
+        <input id="topic-search" type="search" placeholder="Search topics..." />
+        <select id="filter-category">
+          <option value="">All Categories</option>
+          <option value="AI">AI</option>
+          <option value="DEVOPS">DEVOPS</option>
+          <option value="CLOUD">CLOUD</option>
+          <option value="PYTHON">PYTHON</option>
+          <option value="DATA">DATA</option>
+          <option value="CAREER">CAREER</option>
+          <option value="LINKEDIN">LINKEDIN</option>
+          <option value="AUTOMATION">AUTOMATION</option>
+          <option value="PRODUCTIVITY">PRODUCTIVITY</option>
+          <option value="GENERAL">GENERAL</option>
+        </select>
+        <select id="filter-status">
+          <option value="">All Statuses</option>
+          <option value="NEW">NEW</option>
+          <option value="GENERATING">GENERATING</option>
+          <option value="READY_FOR_REVIEW">READY_FOR_REVIEW</option>
+          <option value="APPROVED">APPROVED</option>
+          <option value="SCHEDULED">SCHEDULED</option>
+          <option value="PUBLISHED">PUBLISHED</option>
+          <option value="FAILED">FAILED</option>
+        </select>
+        <select id="sort-priority">
+          <option value="">Sort by priority</option>
+          <option value="HIGH">High first</option>
+          <option value="MEDIUM">Medium first</option>
+          <option value="LOW">Low first</option>
+        </select>
+      </div>
+      <div id="topics-table-container"></div>
       <div id="topic-message" class="message"></div>
+    </section>
+
+    <section id="history" class="panel">
+      <h2>Generated Content History</h2>
+      <div class="table-controls history-controls">
+        <input id="history-search" type="search" placeholder="Search generated topics..." />
+        <select id="history-status-filter">
+          <option value="">All statuses</option>
+          <option value="READY_FOR_REVIEW">READY_FOR_REVIEW</option>
+          <option value="APPROVED">APPROVED</option>
+          <option value="SCHEDULED">SCHEDULED</option>
+          <option value="PUBLISHED">PUBLISHED</option>
+        </select>
+      </div>
+      <div id="history-table-container"></div>
+      <div id="history-message" class="message hidden"></div>
     </section>
 
     <section id="import" class="panel">
       <h2>Import Topics</h2>
       <p>Upload an Excel file with columns: Topic, Category, Priority.</p>
-      <form id="import-form">
+      <form id="import-form" action="javascript:void(0);" method="post" onsubmit="return false;">
         <input type="file" name="file" accept=".xlsx,.xls" required />
-        <button type="submit">Upload</button>
+        <button id="upload-button" type="button">Upload</button>
       </form>
-      <pre id="import-result"></pre>
+      <div id="import-summary" class="summary"></div>
+      <div id="import-table-container"></div>
+      <div id="import-errors" class="errors"></div>
     </section>
 
     <section id="generate" class="panel">
       <h2>Generate Content</h2>
       <p>Trigger a LinkedIn post generation from the next pending topic.</p>
       <button id="generate-button">Generate Now</button>
+      <div id="generate-panel" class="generate-panel hidden">
+        <div class="generate-header">
+          <div>
+            <h3 id="generate-topic-title"></h3>
+            <div id="generate-topic-meta"></div>
+          </div>
+          <div class="generate-actions">
+            <button id="copy-button" type="button">Copy</button>
+            <button id="regenerate-button" type="button">Regenerate</button>
+            <button id="save-draft-button" type="button">Save Draft</button>
+            <button id="approve-button" type="button">Approve from Preview</button>
+          </div>
+        </div>
+        <div class="preview-split">
+          <div class="preview-editor">
+            <label for="preview-editor-input">Editable Draft</label>
+            <textarea id="preview-editor-input" rows="16" placeholder="Generated post appears here..."></textarea>
+          </div>
+          <div class="preview-card">
+            <div class="preview-card-head">
+              <div class="preview-avatar">LI</div>
+              <div>
+                <strong>LinkedIn AI Studio</strong>
+                <p>Preview mode • Now</p>
+              </div>
+            </div>
+            <div id="linkedin-preview-content" class="linkedin-preview-content"></div>
+            <div class="preview-social-meta">Auto-preview • Visibility: Public</div>
+            <div class="preview-social-actions">
+              <span>👍 Like</span>
+              <span>💬 Comment</span>
+              <span>↗ Share</span>
+            </div>
+          </div>
+        </div>
+        <section class="ai-insights-panel">
+          <h4>AI Insights</h4>
+          <div id="ai-insights-grid" class="ai-insights-grid"></div>
+        </section>
+        <pre id="generated-post" class="hidden"></pre>
+        <div id="token-summary" class="token-summary"></div>
+      </div>
       <div id="generate-result" class="message"></div>
     </section>
-  </main>
+
+    <section id="settings" class="panel">
+      <h2>Platform Settings</h2>
+      <p>Track OAuth readiness and scheduling safety checks for publishing.</p>
+      <div class="home-grid">
+        <section class="widget">
+          <h3>LinkedIn OAuth Readiness</h3>
+          <div id="oauth-readiness-list"></div>
+        </section>
+        <section class="widget">
+          <h3>Publishing Hardening</h3>
+          <div id="publishing-hardening-list"></div>
+        </section>
+        <section class="widget">
+          <h3>LinkedIn Connection</h3>
+          <p>Start OAuth in one click and return to this app after authorization.</p>
+          <div class="connect-linkedin-actions">
+            <button id="connect-linkedin-button" type="button">Connect LinkedIn</button>
+            <span id="connect-linkedin-message"></span>
+            <span id="oauth-missing-hint" class="oauth-missing-hint"></span>
+          </div>
+        </section>
+      </div>
+      <div id="settings-message" class="message hidden"></div>
+    </section>
+    </main>
+  </div>
+
+  <aside id="topic-drawer" class="drawer hidden" aria-hidden="true">
+    <div id="drawer-backdrop" class="drawer-backdrop"></div>
+    <div class="drawer-panel">
+      <div class="drawer-header">
+        <div>
+          <h3 id="drawer-topic-title">Topic Details</h3>
+          <p id="drawer-topic-meta"></p>
+        </div>
+        <button id="drawer-close" type="button">Close</button>
+      </div>
+      <div class="drawer-section">
+        <h4>Status Timeline</h4>
+        <div id="drawer-timeline"></div>
+      </div>
+      <div class="drawer-section">
+        <h4>Generated Content</h4>
+        <pre id="drawer-generated-post"></pre>
+      </div>
+      <div class="drawer-section">
+        <h4>Token Usage</h4>
+        <p id="drawer-token-usage"></p>
+      </div>
+      <div class="drawer-actions">
+        <button id="drawer-generate-again" type="button">Generate Again</button>
+        <button id="drawer-approve" type="button">Approve</button>
+        <button id="drawer-delete" type="button">Delete</button>
+      </div>
+    </div>
+  </aside>
 
   <script src="/static/app.js"></script>
 </body>

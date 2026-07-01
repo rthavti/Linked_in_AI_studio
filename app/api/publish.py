@@ -11,6 +11,7 @@ from app.schemas.publish import (
     LinkedInAccountRead,
     LinkedInAccountUpdate,
     OAuthCallbackResponse,
+    OAuthHealthRead,
     OAuthStartResponse,
     PublishHistoryRead,
     PublishMediaRequest,
@@ -70,6 +71,14 @@ def get_publish_status(
 ):
     service = PublishService(db)
     return service.get_status()
+
+
+@router.get("/oauth/health", response_model=OAuthHealthRead)
+def get_oauth_health(
+    db: Session = Depends(get_db),
+):
+    service = PublishService(db)
+    return service.get_oauth_health()
 
 
 @router.get("/accounts", response_model=list[LinkedInAccountRead])

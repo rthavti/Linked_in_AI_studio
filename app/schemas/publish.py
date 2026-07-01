@@ -49,6 +49,19 @@ class OAuthCallbackResponse(BaseModel):
     account_id: int
 
 
+class OAuthHealthRead(BaseModel):
+    oauth_configured: bool
+    client_id_configured: bool
+    client_secret_configured: bool
+    redirect_uri_configured: bool
+    scopes_configured: bool
+    token_secret_configured: bool
+    oauth_state_ttl_seconds: int
+    retry_delay_seconds: int
+    connected: bool
+    latest_account_id: Optional[int] = None
+
+
 class PublishStatusRead(BaseModel):
     connected: bool
     account_count: int

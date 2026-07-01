@@ -19,7 +19,17 @@ class IngestSummary(BaseModel):
     errors: list[IngestError] = Field(default_factory=list)
 
 
+class IngestRow(BaseModel):
+    row: int
+    topic: str
+    category: str
+    priority: str
+    status: str
+    error_message: str | None = None
+
+
 class IngestResponse(BaseModel):
     success: bool
     message: str
     summary: IngestSummary
+    rows: list[IngestRow] = Field(default_factory=list)

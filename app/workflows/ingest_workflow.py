@@ -15,6 +15,7 @@ from app.models.topic import Priority
 from app.repositories.topic_repository import TopicRepository
 from app.schemas.ingest import (
     IngestError,
+    IngestRow,
     IngestSummary,
 )
 
@@ -35,7 +36,7 @@ class IngestWorkflow:
     def execute(
         self,
         excel_file: str | Path,
-    ) -> IngestSummary:
+    ) -> tuple[IngestSummary, list[IngestRow]]:
 
         excel_file = Path(excel_file)
 
@@ -52,8 +53,15 @@ class IngestWorkflow:
         self.validate_columns(dataframe)
 
         summary = IngestSummary()
+        rows: list[IngestRow] = []
 
         for row_number, row in dataframe.iterrows():
+
+            row_topic = ""
+            row_category = ""
+            row_priority = ""
+            status = "Imported"
+            error_message: str | None = None
 
             try:
 
@@ -69,6 +77,10 @@ class IngestWorkflow:
                     row["Priority"],
                 )
 
+                row_topic = topic
+                row_category = category
+                row_priority = priority
+
                 if not topic:
                     raise ValueError("Topic cannot be empty.")
 
@@ -79,8 +91,18 @@ class IngestWorkflow:
                     raise ValueError("Priority cannot be empty.")
 
                 if self.repository.get_by_topic(topic):
-
                     summary.duplicates += 1
+                    status = "Duplicate"
+                    rows.append(
+                        IngestRow(
+                            row=row_number + 2,
+                            topic=topic,
+                            category=category,
+                            priority=priority,
+                            status=status,
+                            error_message=None,
+                        )
+                    )
                     continue
 
                 category_enum = Category(category.upper())
@@ -95,20 +117,32 @@ class IngestWorkflow:
                 summary.imported += 1
 
             except Exception as ex:
+                status = "Failed"
+                error_message = str(ex)
+                summary.failed += 1
+
+                summary.errors.append(
+                    IngestError(
+                        row=row_number + 2,
+                        message=error_message,
+                    )
+                )
 
                 logger.exception(
                     "Failed importing row %s",
                     row_number + 2,
                 )
 
-                summary.failed += 1
-
-                summary.errors.append(
-                    IngestError(
-                        row=row_number + 2,
-                        message=str(ex),
-                    )
+            rows.append(
+                IngestRow(
+                    row=row_number + 2,
+                    topic=row_topic,
+                    category=row_category,
+                    priority=row_priority,
+                    status=status,
+                    error_message=error_message,
                 )
+            )
 
         try:
 
@@ -126,7 +160,7 @@ class IngestWorkflow:
             summary.failed,
         )
 
-        return summary
+        return summary, rows
 
     @staticmethod
     def validate_columns(dataframe):

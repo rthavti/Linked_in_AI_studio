@@ -9,6 +9,7 @@ from app.database import get_db
 from app.models.topic import TopicStatus
 from app.repositories.topic_repository import TopicRepository
 from app.schemas.topic import (
+    TopicContentUpdate,
     TopicCreate,
     TopicRead,
     TopicRegenerate,
@@ -109,6 +110,40 @@ def update_topic(
 
     updated = repository.update(topic)
     return updated
+
+
+@router.put(
+    "/{topic_id}/content",
+    response_model=TopicRead,
+    responses={
+        400: {"description": "Bad request."},
+        404: {"description": "Not found."},
+        500: {"description": "Internal server error."},
+    },
+)
+def update_topic_content(
+    topic_id: int,
+    payload: TopicContentUpdate,
+    db: Session = Depends(get_db),
+):
+    repository = TopicRepository(db)
+    topic = repository.get_by_id(topic_id)
+
+    if topic is None:
+        raise HTTPException(status_code=404, detail="Topic not found.")
+
+    draft = payload.generated_post.strip()
+    if not draft:
+        raise HTTPException(status_code=400, detail="Generated content cannot be empty.")
+
+    if not repository.update_generated_post(
+        topic_id,
+        TopicStatus.READY_FOR_REVIEW,
+        draft,
+    ):
+        raise HTTPException(status_code=500, detail="Unable to update topic content.")
+
+    return repository.get_by_id(topic_id)
 
 
 @router.post(

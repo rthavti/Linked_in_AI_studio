@@ -72,12 +72,13 @@ async def upload_topics(
 
         workflow = IngestWorkflow(db)
 
-        summary = workflow.execute(temp_path)
+        summary, rows = workflow.execute(temp_path)
 
         return IngestResponse(
             success=True,
             message="Topics imported successfully.",
             summary=summary,
+            rows=rows,
         )
 
     finally:

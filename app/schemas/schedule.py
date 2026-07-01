@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import field_validator
+from pydantic import model_validator
 
 
 class ScheduleSettingCreate(BaseModel):
@@ -30,6 +31,17 @@ class ScheduleSettingCreate(BaseModel):
             raise ValueError("Time must be in HH:MM format (00:00-23:59).")
 
         return value
+
+    @model_validator(mode="after")
+    def validate_windows(self):
+        if (
+            self.morning_enabled
+            and self.evening_enabled
+            and self.morning_time == self.evening_time
+        ):
+            raise ValueError("Morning and evening times must be different.")
+
+        return self
 
 
 class ScheduleSettingRead(ScheduleSettingCreate):

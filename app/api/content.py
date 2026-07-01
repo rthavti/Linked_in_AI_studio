@@ -49,6 +49,5 @@ def generate_content(
     return {
         "success": True,
         "message": "LinkedIn content generated successfully.",
-        "topic_id": refreshed_topic.id,
-        "status": refreshed_topic.status,
+        "topic": refreshed_topic,
     }
