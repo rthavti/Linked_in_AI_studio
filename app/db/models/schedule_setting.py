@@ -20,7 +20,7 @@ class ScheduleSetting(Base):
     morning_enabled = Column(
         Boolean,
         nullable=False,
-        default=True,
+        default=False,
     )
 
     morning_time = Column(
@@ -32,7 +32,7 @@ class ScheduleSetting(Base):
     evening_enabled = Column(
         Boolean,
         nullable=False,
-        default=True,
+        default=False,
     )
 
     evening_time = Column(

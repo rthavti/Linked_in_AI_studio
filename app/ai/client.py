@@ -10,6 +10,7 @@ Author: LinkedIn AI Studio
 """
 
 import logging
+import base64
 
 from openai import OpenAI
 
@@ -106,3 +107,24 @@ class OpenAIClient(AIClient):
             request["temperature"] = settings.GPT_TEMPERATURE
 
         return request
+
+    def generate_image(
+        self,
+        prompt: str,
+        size: str = "1024x1024",
+    ) -> bytes:
+
+        response = self.client.images.generate(
+            model="gpt-image-1",
+            prompt=prompt,
+            size=size,
+        )
+
+        if not response.data:
+            raise RuntimeError("Image generation returned no data.")
+
+        b64_image = getattr(response.data[0], "b64_json", None)
+        if not b64_image:
+            raise RuntimeError("Image generation did not include base64 image data.")
+
+        return base64.b64decode(b64_image)

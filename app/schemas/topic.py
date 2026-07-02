@@ -2,6 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
+from pydantic import Field
 
 from app.models.topic import Category
 from app.models.topic import Priority
@@ -45,3 +46,5 @@ class TopicRead(BaseModel):
 class TopicRegenerate(BaseModel):
     template_name: str = "story"
     prompt_version: str = "v1"
+    generate_images: bool = False
+    image_count: int = Field(default=1, ge=1, le=2)

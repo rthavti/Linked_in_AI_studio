@@ -28,7 +28,9 @@ None
 
 v0.6.0
 
-LinkedIn OAuth
+LinkedIn OAuth readiness checks
+
+Optional auto scheduling defaults
 
 Publishing Queue
 
@@ -36,4 +38,8 @@ Media Upload
 
 Token Refresh
 
-Scheduler Integration
+Scheduler integration
+
+Preview draft editing and approval flow
+
+Regression-safe test fixtures

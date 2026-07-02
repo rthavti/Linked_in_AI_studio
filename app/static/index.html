@@ -31,6 +31,18 @@
           <p class="hero-kicker">AI Studio Control Center</p>
           <h2>Studio Dashboard</h2>
           <p class="hero-subtitle">Track content pipeline health, generation quality, and publishing momentum in one place.</p>
+          <div class="timezone-control">
+            <label for="display-timezone">Display Timezone</label>
+            <select id="display-timezone" aria-label="Display timezone">
+              <option value="Asia/Kolkata" selected>India (IST)</option>
+              <option value="UTC">UTC</option>
+              <option value="America/New_York">United States (ET)</option>
+              <option value="Europe/London">United Kingdom</option>
+              <option value="Asia/Dubai">UAE</option>
+              <option value="Asia/Singapore">Singapore</option>
+              <option value="Australia/Sydney">Australia (Sydney)</option>
+            </select>
+          </div>
         </div>
         <div class="hero-health-strip">
           <div class="hero-health-chip">
@@ -86,7 +98,14 @@
           <div id="home-system-status"></div>
         </section>
         <section class="widget">
-          <h3>Pipeline Flow</h3>
+          <div class="widget-head">
+            <h3>Pipeline Flow</h3>
+            <select id="home-pipeline-range" aria-label="Pipeline range">
+              <option value="today">Today</option>
+              <option value="week" selected>Last 7 Days</option>
+              <option value="month">Last 30 Days</option>
+            </select>
+          </div>
           <div id="home-pipeline-strip"></div>
         </section>
         <section class="widget">
@@ -121,6 +140,7 @@
             </label>
           </div>
           <button type="submit">Save Auto Defaults</button>
+          <p id="auto-schedule-helper" class="helper-text"></p>
         </section>
       </form>
       <div id="schedule-message" class="message"></div>
@@ -128,6 +148,7 @@
       <div class="schedule-board">
         <section class="widget">
           <h3>Schedule Approved Topic</h3>
+          <p id="approved-topic-helper" class="helper-text"></p>
           <div class="schedule-single-form">
             <label for="approved-topic-select">Approved Topic</label>
             <select id="approved-topic-select">
@@ -135,7 +156,10 @@
             </select>
             <label for="schedule-topic-datetime">Publish Date & Time</label>
             <input id="schedule-topic-datetime" type="datetime-local" />
-            <button id="schedule-topic-button" type="button">Schedule Topic</button>
+            <div class="schedule-inline-actions">
+              <button id="schedule-topic-button" type="button">Schedule Topic</button>
+              <button id="instant-topic-button" type="button">Post Instantly</button>
+            </div>
           </div>
         </section>
       </div>
@@ -209,6 +233,19 @@
       <h2>Generated Content History</h2>
       <div class="table-controls history-controls">
         <input id="history-search" type="search" placeholder="Search generated topics..." />
+        <select id="history-category-filter">
+          <option value="">All Categories</option>
+          <option value="AI">AI</option>
+          <option value="DEVOPS">DEVOPS</option>
+          <option value="CLOUD">CLOUD</option>
+          <option value="PYTHON">PYTHON</option>
+          <option value="DATA">DATA</option>
+          <option value="CAREER">CAREER</option>
+          <option value="LINKEDIN">LINKEDIN</option>
+          <option value="AUTOMATION">AUTOMATION</option>
+          <option value="PRODUCTIVITY">PRODUCTIVITY</option>
+          <option value="GENERAL">GENERAL</option>
+        </select>
         <select id="history-status-filter">
           <option value="">All statuses</option>
           <option value="READY_FOR_REVIEW">READY_FOR_REVIEW</option>
@@ -228,6 +265,45 @@
         <input type="file" name="file" accept=".xlsx,.xls" required />
         <button id="upload-button" type="button">Upload</button>
       </form>
+      <section class="widget">
+        <h3>Viral Trends Generator</h3>
+        <p>Pull latest category news, generate one cumulative summary post, and create one or two post images.</p>
+        <form id="trending-form" class="inline-form" action="javascript:void(0);" method="post" onsubmit="return false;">
+          <select name="engagement_type" required>
+            <option value="discussion_starter">Discussion Starter</option>
+            <option value="how_to_playbook">How-To Playbook</option>
+            <option value="trend_radar" selected>Trend Radar</option>
+            <option value="case_study_breakdown">Case Study Breakdown</option>
+            <option value="cta_to_dm">CTA to DM</option>
+          </select>
+          <select name="category" required>
+            <option value="AI" selected>AI</option>
+            <option value="DEVOPS">DEVOPS</option>
+            <option value="CLOUD">CLOUD</option>
+            <option value="DATA">DATA</option>
+            <option value="AUTOMATION">AUTOMATION</option>
+            <option value="GENERAL">GENERAL</option>
+          </select>
+          <input type="text" name="keyword" placeholder="Optional keyword (e.g. agents, kubernetes)" />
+          <select name="priority" required>
+            <option value="HIGH">HIGH</option>
+            <option value="MEDIUM" selected>MEDIUM</option>
+            <option value="LOW">LOW</option>
+          </select>
+          <label>
+            News
+            <input type="number" name="max_items" min="3" max="12" value="6" />
+          </label>
+          <label>
+            Images
+            <select name="image_count">
+              <option value="1" selected>1 image</option>
+              <option value="2">2 images</option>
+            </select>
+          </label>
+          <button id="trending-button" type="button">Pull Trends + Generate</button>
+        </form>
+      </section>
       <div id="import-summary" class="summary"></div>
       <div id="import-table-container"></div>
       <div id="import-errors" class="errors"></div>
@@ -236,6 +312,19 @@
     <section id="generate" class="panel">
       <h2>Generate Content</h2>
       <p>Trigger a LinkedIn post generation from the next pending topic.</p>
+      <p id="generate-target-info" class="helper-text">Target: Next pending topic (oldest NEW).</p>
+      <div class="generate-options">
+        <label>
+          <input id="generate-images-toggle" type="checkbox" /> Generate image
+        </label>
+        <label>
+          Images
+          <select id="generate-image-count" disabled>
+            <option value="1" selected>1 image</option>
+            <option value="2">2 images</option>
+          </select>
+        </label>
+      </div>
       <button id="generate-button">Generate Now</button>
       <div id="generate-panel" class="generate-panel hidden">
         <div class="generate-header">
@@ -246,6 +335,7 @@
           <div class="generate-actions">
             <button id="copy-button" type="button">Copy</button>
             <button id="regenerate-button" type="button">Regenerate</button>
+            <button id="enhance-button" type="button">Enhance Engagement</button>
             <button id="save-draft-button" type="button">Save Draft</button>
             <button id="approve-button" type="button">Approve from Preview</button>
           </div>
@@ -272,9 +362,32 @@
             </div>
           </div>
         </div>
+        <section id="generate-images-panel" class="ai-insights-panel hidden">
+          <h4>Generated Images</h4>
+          <div id="generate-images-container"></div>
+        </section>
         <section class="ai-insights-panel">
           <h4>AI Insights</h4>
           <div id="ai-insights-grid" class="ai-insights-grid"></div>
+        </section>
+        <section id="engagement-panel" class="ai-insights-panel hidden">
+          <h4>Engagement Enhancer</h4>
+          <div class="engagement-controls">
+            <select id="enhance-engagement-type">
+              <option value="discussion_starter">Discussion Starter</option>
+              <option value="how_to_playbook">How-To Playbook</option>
+              <option value="trend_radar" selected>Trend Radar</option>
+              <option value="case_study_breakdown">Case Study Breakdown</option>
+              <option value="cta_to_dm">CTA to DM</option>
+            </select>
+            <input id="enhance-keywords" type="text" placeholder="Extra keywords (comma separated)" />
+            <label>
+              Hashtags
+              <input id="enhance-hashtag-count" type="number" min="4" max="10" value="6" />
+            </label>
+          </div>
+          <div id="enhance-hooks" class="compact-list"></div>
+          <div id="enhance-hashtags" class="token-summary"></div>
         </section>
         <pre id="generated-post" class="hidden"></pre>
         <div id="token-summary" class="token-summary"></div>
@@ -289,6 +402,25 @@
         <section class="widget">
           <h3>LinkedIn OAuth Readiness</h3>
           <div id="oauth-readiness-list"></div>
+        </section>
+        <section class="widget">
+          <h3>OAuth Setup</h3>
+          <p>Configure the LinkedIn app in the LinkedIn Developer Portal, then keep the credentials in your local <code>.env</code> file. This keeps secrets out of the browser and makes each environment unique.</p>
+          <ol class="setup-steps">
+            <li>Create or open your LinkedIn app in the LinkedIn Developer Portal.</li>
+            <li>Add this redirect URL to the app's OAuth settings.</li>
+            <li>Copy the safe <code>.env</code> template, then fill in your client ID, client secret, scopes, and token secret locally.</li>
+            <li>Restart the app, then use Connect LinkedIn from the Settings tab.</li>
+          </ol>
+          <div class="setup-copy-row">
+            <input id="oauth-callback-url" type="text" readonly />
+            <button id="copy-oauth-callback-button" type="button">Copy Redirect URL</button>
+          </div>
+          <div class="setup-copy-row">
+            <textarea id="oauth-env-template" readonly rows="10"></textarea>
+            <button id="copy-oauth-env-button" type="button">Copy .env Template</button>
+          </div>
+          <p class="helper-text">LinkedIn API integration is required for the live OAuth flow. This app only guides and consumes those credentials; it does not create them for you.</p>
         </section>
         <section class="widget">
           <h3>Publishing Hardening</h3>
@@ -332,6 +464,18 @@
         <p id="drawer-token-usage"></p>
       </div>
       <div class="drawer-actions">
+        <div class="generate-options drawer-generate-options">
+          <label>
+            <input id="drawer-generate-images-toggle" type="checkbox" /> Generate image
+          </label>
+          <label>
+            Images
+            <select id="drawer-generate-image-count" disabled>
+              <option value="1" selected>1 image</option>
+              <option value="2">2 images</option>
+            </select>
+          </label>
+        </div>
         <button id="drawer-generate-again" type="button">Generate Again</button>
         <button id="drawer-approve" type="button">Approve</button>
         <button id="drawer-delete" type="button">Delete</button>

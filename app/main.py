@@ -1,5 +1,6 @@
 from pathlib import Path
 from contextlib import asynccontextmanager
+import asyncio
 
 from fastapi import FastAPI
 from fastapi import Request
@@ -10,6 +11,7 @@ from app.api.routes import router
 from app.database import Base, engine
 import app.db.models  # Registers all SQLAlchemy models
 from app.logger import logger
+from app.realtime import set_event_loop
 from app.scheduler import start_scheduler, stop_scheduler
 
 
@@ -18,6 +20,8 @@ async def lifespan(app: FastAPI):
     logger.info("Creating database tables...")
 
     Base.metadata.create_all(bind=engine)
+
+    set_event_loop(asyncio.get_running_loop())
 
     logger.info("Starting scheduler...")
     start_scheduler()

@@ -18,7 +18,10 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.ingest import (
     IngestResponse,
+    TrendingGenerateRequest,
+    TrendingGenerateResponse,
 )
+from app.services.trending_service import TrendingService
 from app.workflows.ingest_workflow import IngestWorkflow
 
 router = APIRouter(
@@ -87,3 +90,31 @@ async def upload_topics(
 
         if temp_path.exists():
             temp_path.unlink()
+
+
+@router.post(
+    "/trending",
+    response_model=TrendingGenerateResponse,
+    responses={
+        400: {"description": "Invalid request or no trend results found."},
+        500: {"description": "Trending generation failed."},
+    },
+)
+def generate_trending_topic(
+    payload: TrendingGenerateRequest,
+    db: Session = Depends(get_db),
+):
+    service = TrendingService(db)
+    try:
+        return service.generate_trending_topic(
+            engagement_type=payload.engagement_type,
+            category=payload.category,
+            priority=payload.priority,
+            keyword=payload.keyword,
+            max_items=payload.max_items,
+            image_count=payload.image_count,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))

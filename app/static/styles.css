@@ -102,6 +102,32 @@ main {
   opacity: 0.9;
 }
 
+.timezone-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 8px 10px;
+  border: 1px solid rgba(226, 232, 240, 0.35);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.timezone-control label {
+  font-size: 0.83rem;
+  font-weight: 700;
+  opacity: 0.95;
+}
+
+.timezone-control select {
+  min-width: 170px;
+  border-radius: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.35);
+  background: rgba(15, 23, 42, 0.35);
+  color: #f8fafc;
+  padding: 6px 8px;
+}
+
 .hero-health-strip {
   display: grid;
   gap: 10px;
@@ -195,9 +221,66 @@ main {
   margin-top: 0;
 }
 
+.widget-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.widget-head h3 {
+  margin: 0;
+}
+
+#home-pipeline-range {
+  width: auto;
+  min-width: 130px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  font-size: 0.82rem;
+}
+
 .compact-list {
   display: grid;
   gap: 8px;
+}
+
+.setup-steps {
+  margin: 10px 0 14px;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+  color: #334155;
+}
+
+.setup-steps li {
+  line-height: 1.45;
+}
+
+.setup-copy-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.setup-copy-row input {
+  min-width: 0;
+}
+
+.setup-copy-row textarea {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 12px;
+  background: #ffffff;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.45;
 }
 
 .compact-row {
@@ -453,6 +536,18 @@ button:hover {
   max-width: 520px;
 }
 
+.schedule-inline-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.helper-text {
+  margin: 6px 0 0;
+  font-size: 0.84rem;
+  color: #475569;
+}
+
 .auto-schedule-fields {
   margin-top: 6px;
   display: grid;
@@ -461,6 +556,25 @@ button:hover {
 
 .auto-schedule-fields.hidden {
   display: none;
+}
+
+@media (max-width: 768px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .home-hero,
+  .preview-split {
+    grid-template-columns: 1fr;
+  }
+
+  .table-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-single-form {
+    max-width: none;
+  }
 }
 
 table {
@@ -487,6 +601,26 @@ tbody tr:nth-child(even) {
 
 .hidden {
   display: none;
+}
+
+.generated-images-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.generated-image-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 8px;
+  background: #f8fafc;
+}
+
+.generated-image-card img {
+  width: 100%;
+  border-radius: 8px;
+  display: block;
+  margin-bottom: 8px;
 }
 
 .generate-panel {
@@ -686,6 +820,13 @@ tbody tr:nth-child(even) {
   color: #9a3412;
 }
 
+code {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
 @keyframes fadeUp {
   from {
     opacity: 0;
@@ -708,6 +849,43 @@ tbody tr:nth-child(even) {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.generate-options {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 10px 0 12px;
+  flex-wrap: wrap;
+}
+
+#generate-target-info {
+  margin: 8px 0;
+  font-weight: 600;
+  color: #334155;
+}
+
+.generate-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.generate-options select {
+  width: auto;
+  min-width: 110px;
+}
+
+.engagement-controls {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.engagement-controls input[type="text"] {
+  min-width: 240px;
 }
 
 .token-summary {
@@ -793,9 +971,20 @@ pre {
 
 .drawer-actions {
   margin-top: 16px;
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  display: grid;
+  gap: 8px;
+}
+
+.drawer-generate-options {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.drawer-actions button {
+  width: 100%;
 }
 
 .timeline-flow {
@@ -849,5 +1038,9 @@ pre {
 
   .category-row {
     grid-template-columns: 74px 1fr 32px;
+  }
+
+  .setup-copy-row {
+    grid-template-columns: 1fr;
   }
 }

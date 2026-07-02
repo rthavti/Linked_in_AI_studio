@@ -19,6 +19,7 @@ class FakeLinkedInClient:
 
     def __init__(self):
         self.should_fail_publish = False
+        self.last_asset_urns = None
 
     def get_authorize_url(self, state: str) -> str:
         return f"https://linkedin.example/oauth?state={state}"
@@ -50,15 +51,16 @@ class FakeLinkedInClient:
         author_urn: str,
         text: str,
         visibility: str = "PUBLIC",
-        asset_urn: str | None = None,
+        asset_urns: list[str] | None = None,
     ) -> dict:
         if self.should_fail_publish:
             raise RuntimeError("LinkedIn publish failed")
+        self.last_asset_urns = asset_urns
         return {
             "id": "ugc-post-1",
             "author": author_urn,
             "text": text,
-            "asset_urn": asset_urn,
+            "asset_urns": asset_urns,
         }
 
 
@@ -147,6 +149,25 @@ def test_publish_topic_now_uses_latest_account_and_marks_published():
     assert len(history) == 1
     assert history[0].status == "PUBLISHED"
     assert history[0].published_at is not None
+
+
+def test_publish_topic_now_includes_all_attached_media_urns():
+    configure_token_secret()
+    session = create_in_memory_session()
+    client = FakeLinkedInClient()
+    service = PublishService(session, client=client)
+    topic = create_approved_topic(session)
+    topic.media_asset_urn = "urn:li:digitalmediaAsset:A1,urn:li:digitalmediaAsset:A2"
+    session.commit()
+    service.create_account("mock_person_id", "mock_access", "mock_refresh")
+
+    result = service.publish_topic_now(topic.id)
+
+    assert result["success"] is True
+    assert client.last_asset_urns == [
+        "urn:li:digitalmediaAsset:A1",
+        "urn:li:digitalmediaAsset:A2",
+    ]
 
 
 def test_publish_queue_retries_failed_publish():

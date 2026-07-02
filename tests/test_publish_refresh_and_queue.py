@@ -49,7 +49,7 @@ class FakeLinkedInClient:
         author_urn: str,
         text: str,
         visibility: str = "PUBLIC",
-        asset_urn: str | None = None,
+        asset_urns: list[str] | None = None,
     ) -> dict:
         if self.should_fail_publish:
             raise RuntimeError("LinkedIn publish failed")
@@ -57,7 +57,7 @@ class FakeLinkedInClient:
             "id": "ugc-post-1",
             "author": author_urn,
             "text": text,
-            "asset_urn": asset_urn,
+            "asset_urns": asset_urns,
         }
 
 

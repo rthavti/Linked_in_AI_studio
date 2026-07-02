@@ -72,7 +72,15 @@ AI Studio
 
 Commit 8
 
-Analytics
+Dashboard intelligence expansion
+
+Queue-aware scheduler ops
+
+Publishing health visibility
+
+Regression-safe release hardening
+
+Baseline frozen at Commit 6 scheduler/OAuth UX until the next scoped batch begins.
 
 Commit 9
 

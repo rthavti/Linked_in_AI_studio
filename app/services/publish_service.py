@@ -9,6 +9,7 @@ from app.ai.linkedin_client import LinkedInClient
 from app.config.settings import settings
 from app.logger import logger
 from app.models.topic import TopicStatus
+from app.realtime import publish_event
 from app.repositories.linkedin_account_repository import LinkedInAccountRepository
 from app.repositories.oauth_state_repository import OAuthStateRepository
 from app.repositories.publish_history_repository import PublishHistoryRepository
@@ -45,6 +46,12 @@ class PublishService:
         if value.tzinfo is None:
             return value.replace(tzinfo=timezone.utc)
         return value.astimezone(timezone.utc)
+
+    @staticmethod
+    def _split_media_asset_urns(value: str | None) -> list[str]:
+        if not value:
+            return []
+        return [item.strip() for item in value.split(',') if item and item.strip()]
 
     def start_oauth(self) -> dict:
         state = secrets.token_urlsafe(32)
@@ -83,9 +90,9 @@ class PublishService:
             raise ValueError("LinkedIn OAuth callback did not return access token.")
 
         profile = self.client.get_profile(access_token)
-        provider_user_id = profile.get("id")
+        provider_user_id = profile.get("id") or profile.get("sub")
         if not provider_user_id:
-            raise ValueError("LinkedIn profile response did not include an id.")
+            raise ValueError("LinkedIn profile response did not include a member identifier.")
 
         account = self.account_repo.create_or_update(
             provider_user_id,
@@ -232,6 +239,14 @@ class PublishService:
         )
         topic.status = TopicStatus.SCHEDULED
         self.topic_repo.update(topic)
+        publish_event(
+            "publish.queue.updated",
+            {
+                "topic_id": topic_id,
+                "queue_id": item.id,
+                "status": item.status,
+            },
+        )
         return item
 
     def _resolve_account(self, linkedin_account_id: int | None):
@@ -282,7 +297,11 @@ class PublishService:
 
         self.client.upload_image(upload_url, image_bytes, content_type)
 
-        topic.media_asset_urn = asset_urn
+        existing_assets = self._split_media_asset_urns(topic.media_asset_urn)
+        if asset_urn not in existing_assets:
+            existing_assets.append(asset_urn)
+
+        topic.media_asset_urn = ','.join(existing_assets)
         topic.media_mime_type = content_type
         self.topic_repo.update(topic)
 
@@ -312,11 +331,12 @@ class PublishService:
 
         author_urn = f"urn:li:person:{account.provider_user_id}"
         try:
+            asset_urns = self._split_media_asset_urns(topic.media_asset_urn)
             resp = self.client.publish_post(
                 access_token,
                 author_urn,
                 topic.generated_post.strip(),
-                asset_urn=topic.media_asset_urn,
+                asset_urns=asset_urns,
             )
             published_at = self._utcnow()
             self.history_repo.create(
@@ -331,6 +351,13 @@ class PublishService:
                 TopicStatus.PUBLISHED,
                 topic.generated_post,
             )
+            publish_event(
+                "publish.completed",
+                {
+                    "topic_id": topic.id,
+                    "status": "PUBLISHED",
+                },
+            )
             logger.info("Published topic %s to LinkedIn", topic.id)
             return {"success": True, "response": resp}
         except Exception as exc:
@@ -339,6 +366,13 @@ class PublishService:
                 account.id,
                 "FAILED",
                 error_message=str(exc),
+            )
+            publish_event(
+                "publish.failed",
+                {
+                    "topic_id": topic.id,
+                    "error": str(exc),
+                },
             )
             logger.exception("Publish failed for topic %s", topic.id)
             raise
@@ -352,6 +386,14 @@ class PublishService:
 
         item.status = "PROCESSING"
         self.queue_repo.update(item)
+        publish_event(
+            "publish.queue.updated",
+            {
+                "topic_id": item.topic_id,
+                "queue_id": item.id,
+                "status": item.status,
+            },
+        )
 
         try:
             result = self.publish_topic_now(item.topic_id, item.linkedin_account_id)
@@ -359,6 +401,14 @@ class PublishService:
             item.published_at = self._utcnow()
             item.last_error = None
             self.queue_repo.update(item)
+            publish_event(
+                "publish.queue.updated",
+                {
+                    "topic_id": item.topic_id,
+                    "queue_id": item.id,
+                    "status": item.status,
+                },
+            )
             return result
         except Exception as exc:
             item.attempts += 1
@@ -371,6 +421,14 @@ class PublishService:
                     seconds=settings.PUBLISH_RETRY_DELAY_SECONDS
                 )
             self.queue_repo.update(item)
+            publish_event(
+                "publish.queue.updated",
+                {
+                    "topic_id": item.topic_id,
+                    "queue_id": item.id,
+                    "status": item.status,
+                },
+            )
             raise
 
     def process_due_queue(self, limit: int = 10) -> int:

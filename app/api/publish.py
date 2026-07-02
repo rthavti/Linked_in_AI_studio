@@ -1,4 +1,6 @@
 import httpx
+import html
+from urllib.parse import unquote_plus
 
 from fastapi import APIRouter
 from fastapi import Depends
@@ -52,10 +54,31 @@ def linkedin_connect(
 @router.get("/callback", response_model=OAuthCallbackResponse)
 @router.get("/linkedin/callback", response_model=OAuthCallbackResponse)
 def linkedin_callback(
-    code: str,
-    state: str,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    error_description: str | None = None,
     db: Session = Depends(get_db),
 ):
+    if error:
+        decoded_error = unquote_plus(error)
+        decoded_description = html.unescape(unquote_plus(error_description or ""))
+        detail = f"LinkedIn OAuth failed: {decoded_error}"
+        if decoded_description:
+            detail += f" - {decoded_description}"
+        if decoded_error == "unauthorized_scope_error":
+            detail += (
+                " Verify LINKEDIN_SCOPES matches permissions enabled for your LinkedIn app "
+                "in the LinkedIn Developer Portal."
+            )
+        raise HTTPException(status_code=400, detail=detail)
+
+    if not code or not state:
+        raise HTTPException(
+            status_code=400,
+            detail="LinkedIn OAuth callback is missing required query parameters: code and state.",
+        )
+
     service = PublishService(db)
     try:
         return service.handle_callback(code, state)

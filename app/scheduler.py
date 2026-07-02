@@ -1,11 +1,13 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from app.config import settings
 from app.logger import logger
 from app.repositories.schedule_repository import ScheduleRepository
 from app.repositories.topic_repository import TopicRepository
 from app.database import SessionLocal
+from app.realtime import publish_event
 from app.services.generation_service import GenerationService
 from app.services.publish_service import PublishService
 
@@ -25,6 +27,16 @@ def schedule_jobs():
             schedule = settings_repo.create_default()
 
         scheduler.remove_all_jobs()
+
+        # Process due publish queue items continuously, independent of content generation windows.
+        scheduler.add_job(
+            process_due_publish_queue,
+            IntervalTrigger(minutes=1),
+            id="linkedin_publish_queue_worker",
+            replace_existing=True,
+        )
+
+        logger.info("Registered scheduler job: linkedin_publish_queue_worker every 1 minute")
 
         if schedule.morning_enabled:
             hour, minute = schedule.morning_time.split(":")
@@ -90,6 +102,25 @@ def scheduled_linkedin_workflow():
             logger.info("Scheduled LinkedIn post generated successfully.")
         else:
             logger.info("Scheduled LinkedIn post generation failed.")
+    finally:
+        session.close()
+
+
+def process_due_publish_queue():
+    logger.info("Running scheduled LinkedIn publish queue worker.")
+    session = SessionLocal()
+
+    try:
+        publish_service = PublishService(session)
+        processed = publish_service.process_due_queue()
+        publish_event(
+            "publish.worker.ran",
+            {
+                "processed": processed,
+            },
+        )
+        if processed:
+            logger.info("Processed %s queued LinkedIn publish jobs.", processed)
     finally:
         session.close()
 

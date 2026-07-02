@@ -7,6 +7,7 @@ from app.config.settings import settings
 class LinkedInClient:
     AUTH_URL = "https://www.linkedin.com/oauth/v2/authorization"
     TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
+    USERINFO_URL = "https://api.linkedin.com/v2/userinfo"
     PROFILE_URL = "https://api.linkedin.com/v2/me"
     SHARE_URL = "https://api.linkedin.com/v2/ugcPosts"
     ASSET_REGISTER_URL = "https://api.linkedin.com/v2/assets?action=registerUpload"
@@ -15,11 +16,21 @@ class LinkedInClient:
         self.client_id = settings.LINKEDIN_CLIENT_ID
         self.client_secret = settings.LINKEDIN_CLIENT_SECRET
         self.redirect_uri = settings.LINKEDIN_REDIRECT_URI
-        self.scopes = settings.LINKEDIN_SCOPES or "w_member_social r_liteprofile"
+        self.scopes = settings.LINKEDIN_SCOPES or "w_member_social openid profile"
 
     def _validate_oauth_config(self) -> None:
-        if not self.client_id or not self.client_secret or not self.redirect_uri:
-            raise ValueError("LinkedIn OAuth settings are not configured.")
+        missing = []
+        if not self.client_id:
+            missing.append("LINKEDIN_CLIENT_ID")
+        if not self.client_secret:
+            missing.append("LINKEDIN_CLIENT_SECRET")
+        if not self.redirect_uri:
+            missing.append("LINKEDIN_REDIRECT_URI")
+
+        if missing:
+            raise ValueError(
+                "LinkedIn OAuth settings are not configured. Missing: " + ", ".join(missing)
+            )
 
     def get_authorize_url(self, state: str) -> str:
         self._validate_oauth_config()
@@ -46,11 +57,19 @@ class LinkedInClient:
         return resp.json()
 
     def get_profile(self, access_token: str) -> dict:
-        headers = {
+        oauth_headers = {
+            "Authorization": f"Bearer {access_token}",
+        }
+        userinfo_resp = httpx.get(self.USERINFO_URL, headers=oauth_headers, timeout=30)
+        if userinfo_resp.status_code < 400:
+            return userinfo_resp.json()
+
+        # Fall back to legacy profile API for older scope combinations.
+        legacy_headers = {
             "Authorization": f"Bearer {access_token}",
             "X-Restli-Protocol-Version": "2.0.0",
         }
-        resp = httpx.get(self.PROFILE_URL, headers=headers, timeout=30)
+        resp = httpx.get(self.PROFILE_URL, headers=legacy_headers, timeout=30)
         resp.raise_for_status()
         return resp.json()
 
@@ -118,7 +137,7 @@ class LinkedInClient:
         author_urn: str,
         text: str,
         visibility: str = "PUBLIC",
-        asset_urn: str | None = None,
+        asset_urns: list[str] | None = None,
     ) -> dict:
         headers = {
             "Authorization": f"Bearer {access_token}",
@@ -140,15 +159,17 @@ class LinkedInClient:
             "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": visibility},
         }
 
-        if asset_urn:
+        clean_asset_urns = [urn for urn in (asset_urns or []) if urn]
+        if clean_asset_urns:
             body["specificContent"]["com.linkedin.ugc.ShareContent"]["shareMediaCategory"] = "IMAGE"
             body["specificContent"]["com.linkedin.ugc.ShareContent"]["media"] = [
                 {
                     "status": "READY",
                     "description": {"text": text},
-                    "media": asset_urn,
-                    "title": {"text": "Image"},
+                    "media": urn,
+                    "title": {"text": f"Image {idx + 1}"},
                 }
+                for idx, urn in enumerate(clean_asset_urns)
             ]
 
         resp = httpx.post(self.SHARE_URL, json=body, headers=headers, timeout=30)

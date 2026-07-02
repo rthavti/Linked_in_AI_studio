@@ -6,9 +6,9 @@ from pydantic import model_validator
 
 
 class ScheduleSettingCreate(BaseModel):
-    morning_enabled: bool = True
+    morning_enabled: bool = False
     morning_time: str = Field(default="08:00", min_length=5, max_length=5)
-    evening_enabled: bool = True
+    evening_enabled: bool = False
     evening_time: str = Field(default="17:00", min_length=5, max_length=5)
 
     @field_validator("morning_time", "evening_time")
