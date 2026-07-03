@@ -6,6 +6,8 @@ from app.db.models.publish_history import PublishHistory
 from app.db.models.linkedin_account import LinkedInAccount
 from app.db.models.oauth_state import OAuthState
 from app.db.models.publish_queue import PublishQueue
+from app.db.models.learning_campaign import LearningCampaign
+from app.db.models.learning_campaign_item import LearningCampaignItem
 
 __all__ = [
     "GenerationHistory",
@@ -16,4 +18,6 @@ __all__ = [
     "LinkedInAccount",
     "OAuthState",
     "PublishQueue",
+    "LearningCampaign",
+    "LearningCampaignItem",
 ]

@@ -20,29 +20,32 @@
         <button type="button" data-section="generate">🤖 Generate</button>
         <button type="button" data-section="history">📜 History</button>
         <button type="button" data-section="schedule">📅 Scheduler</button>
+        <button type="button" data-section="campaigns">🎓 Campaigns</button>
         <button type="button" data-section="settings">⚙ Settings</button>
       </nav>
     </aside>
 
     <main>
     <section id="home" class="panel active">
+      <div class="home-top-bar">
+        <div class="timezone-control timezone-control-outside">
+          <label for="display-timezone">Display Timezone</label>
+          <select id="display-timezone" aria-label="Display timezone">
+            <option value="Asia/Kolkata" selected>India (IST)</option>
+            <option value="UTC">UTC</option>
+            <option value="America/New_York">United States (ET)</option>
+            <option value="Europe/London">United Kingdom</option>
+            <option value="Asia/Dubai">UAE</option>
+            <option value="Asia/Singapore">Singapore</option>
+            <option value="Australia/Sydney">Australia (Sydney)</option>
+          </select>
+        </div>
+      </div>
       <section class="home-hero">
         <div>
           <p class="hero-kicker">AI Studio Control Center</p>
           <h2>Studio Dashboard</h2>
           <p class="hero-subtitle">Track content pipeline health, generation quality, and publishing momentum in one place.</p>
-          <div class="timezone-control">
-            <label for="display-timezone">Display Timezone</label>
-            <select id="display-timezone" aria-label="Display timezone">
-              <option value="Asia/Kolkata" selected>India (IST)</option>
-              <option value="UTC">UTC</option>
-              <option value="America/New_York">United States (ET)</option>
-              <option value="Europe/London">United Kingdom</option>
-              <option value="Asia/Dubai">UAE</option>
-              <option value="Asia/Singapore">Singapore</option>
-              <option value="Australia/Sydney">Australia (Sydney)</option>
-            </select>
-          </div>
         </div>
         <div class="hero-health-strip">
           <div class="hero-health-chip">
@@ -437,6 +440,77 @@
         </section>
       </div>
       <div id="settings-message" class="message hidden"></div>
+    </section>
+
+    <section id="campaigns" class="panel">
+      <h2>Learning Campaigns</h2>
+      <p>Automate ordered daily learning modules from Excel with strong guardrails and auto-publishing.</p>
+
+      <section class="widget">
+        <h3>Create Campaign From Excel</h3>
+        <form id="campaign-form" class="inline-form" action="javascript:void(0);" method="post" onsubmit="return false;">
+          <input id="campaign-name" type="text" placeholder="Campaign name (e.g. 100 Days of Agentic AI)" required />
+          <input id="campaign-description" type="text" placeholder="Optional description" />
+          <input id="campaign-start-date" type="date" />
+          <input id="campaign-publish-time" type="time" value="09:00" required />
+          <select id="campaign-timezone" required>
+            <option value="Asia/Kolkata" selected>India (IST)</option>
+            <option value="UTC">UTC</option>
+            <option value="America/New_York">United States (ET)</option>
+            <option value="Europe/London">United Kingdom</option>
+            <option value="Asia/Dubai">UAE</option>
+            <option value="Asia/Singapore">Singapore</option>
+            <option value="Australia/Sydney">Australia (Sydney)</option>
+          </select>
+          <label>
+            Min words
+            <input id="campaign-min-words" type="number" min="80" max="500" value="120" />
+          </label>
+          <label>
+            Max words
+            <input id="campaign-max-words" type="number" min="120" max="800" value="320" />
+          </label>
+          <label>
+            Max attempts
+            <input id="campaign-max-attempts" type="number" min="1" max="5" value="3" />
+          </label>
+          <label>
+            <input id="campaign-auto-approve" type="checkbox" checked /> Auto-approve drafts
+          </label>
+          <label>
+            <input id="campaign-auto-publish" type="checkbox" checked /> Auto-publish to LinkedIn
+          </label>
+          <label>
+            <input id="campaign-auto-generate-images" type="checkbox" checked /> Create image for every post
+          </label>
+          <label>
+            Image style
+            <select id="campaign-visual-style">
+              <option value="auto" selected>Auto (topic-based)</option>
+              <option value="flow_diagram">Flow Diagram</option>
+              <option value="architecture_diagram">Architecture Diagram</option>
+              <option value="animated_infographic">Animated Infographic</option>
+            </select>
+          </label>
+          <label>
+            Images per post
+            <select id="campaign-image-count">
+              <option value="1" selected>1 image</option>
+              <option value="2">2 images</option>
+            </select>
+          </label>
+          <input id="campaign-file" type="file" accept=".xlsx,.xls" required />
+          <button id="campaign-create-button" type="button">Create Campaign</button>
+        </form>
+        <p class="helper-text">This workbook now supports a full content brief. Sheet 1 can include Day, Series, Phase, Category, Topic, Primary Goal, Hook, Story / Problem, Teaching Points, Enterprise / FDE Angle, Suggested Visual, Code Demo, Real-world Example, Opinion, CTA, Recommended Format, Difficulty, Audience, Keywords, Hashtags, AI Studio Prompt, and Status. Sheet 2 can provide AI_Studio_Config guidance. Required: Topic.</p>
+      </section>
+
+      <div id="campaign-message" class="message"></div>
+
+      <section class="widget">
+        <h3>Campaign Runs</h3>
+        <div id="campaigns-table-container"></div>
+      </section>
     </section>
     </main>
   </div>

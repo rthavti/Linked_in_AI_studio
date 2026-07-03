@@ -9,6 +9,7 @@ from app.repositories.topic_repository import TopicRepository
 from app.database import SessionLocal
 from app.realtime import publish_event
 from app.services.generation_service import GenerationService
+from app.services.learning_campaign_service import LearningCampaignService
 from app.services.publish_service import PublishService
 
 
@@ -113,14 +114,21 @@ def process_due_publish_queue():
     try:
         publish_service = PublishService(session)
         processed = publish_service.process_due_queue()
+
+        campaign_service = LearningCampaignService(session)
+        campaign_processed = campaign_service.process_due_items()
+
         publish_event(
             "publish.worker.ran",
             {
                 "processed": processed,
+                "campaign_processed": campaign_processed,
             },
         )
         if processed:
             logger.info("Processed %s queued LinkedIn publish jobs.", processed)
+        if campaign_processed:
+            logger.info("Processed %s learning campaign items.", campaign_processed)
     finally:
         session.close()
 

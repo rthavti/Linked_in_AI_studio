@@ -8,6 +8,7 @@ from app.api.schedule import router as schedule_router
 from app.api.topics import router as topics_router
 from app.api.publish import router as publish_router
 from app.api.events import router as events_router
+from app.api.campaigns import router as campaigns_router
 
 router = APIRouter()
 
@@ -41,4 +42,8 @@ router.include_router(
 
 router.include_router(
     events_router,
+)
+
+router.include_router(
+    campaigns_router,
 )

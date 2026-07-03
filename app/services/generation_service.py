@@ -105,25 +105,81 @@ class GenerationService:
         slug = re.sub(r"[^a-zA-Z0-9]+", "-", text).strip("-").lower()
         return slug[:48] or "topic"
 
-    def _build_image_prompt(self, topic, generated_post: str, index: int) -> str:
+    @staticmethod
+    def _word_count(text: str) -> int:
+        return len([token for token in (text or "").split() if token.strip()])
+
+    @staticmethod
+    def _trim_to_word_limit(text: str, max_words: int) -> str:
+        if max_words <= 0:
+            return (text or "").strip()
+        words = [token for token in (text or "").split() if token.strip()]
+        if len(words) <= max_words:
+            return (text or "").strip()
+        trimmed = " ".join(words[:max_words]).strip()
+        if trimmed and trimmed[-1] not in ".!?":
+            trimmed = f"{trimmed}."
+        return trimmed
+
+    def _rewrite_with_word_limit(
+        self,
+        topic,
+        generated_post: str,
+        min_words: int,
+        max_words: int,
+    ) -> str:
+        rewrite_prompt = (
+            f"Rewrite the LinkedIn post below to be between {min_words} and {max_words} words. "
+            "Keep the core meaning, preserve a clear call to action, and keep the tone professional and concise. "
+            "Return only the revised post text.\n\n"
+            f"Topic: {topic.topic}\n\n"
+            f"Post:\n{generated_post}"
+        )
+        result = self.ai_client.generate_post(
+            rewrite_prompt,
+            "You are an experienced LinkedIn content editor who writes concise, high-quality posts.",
+        )
+        return (result.get("content") or "").strip()
+
+    def _build_image_prompt(
+        self,
+        topic,
+        generated_post: str,
+        index: int,
+        image_style_hint: str | None = None,
+    ) -> str:
+        style_hint = (image_style_hint or "").strip()
         return (
             f"Create a premium LinkedIn visual for {topic.category.value}, variation {index}. "
             "Art direction: modern B2B editorial, minimal and clean, realistic or high-end vector style, strong composition. "
+            "Prefer educational visuals such as flow diagrams, architecture diagrams, or animated-style infographics. "
             "Use symbols/metaphors from the topic instead of big headline text. "
             "If text appears, keep it very short (max 3 words) and clearly legible. "
             "Avoid poster-like layouts, avoid cartoonish style, avoid dense typography, avoid logos and brand names. "
             "Color palette: professional blue/neutral tones with subtle contrast accents. "
             "Output should look suitable for executive LinkedIn posts. "
-            f"Topic: {topic.topic}. Context: {generated_post[:450]}"
+            f"Topic: {topic.topic}. Context: {generated_post[:450]}. "
+            f"Style guidance: {style_hint if style_hint else 'auto-select best educational style for the topic.'}"
         )
 
-    def _save_images(self, topic, generated_post: str, image_count: int) -> list[str]:
+    def _save_images(
+        self,
+        topic,
+        generated_post: str,
+        image_count: int,
+        image_style_hint: str | None = None,
+    ) -> list[str]:
         generated_dir = Path(__file__).resolve().parent.parent / "static" / "generated"
         generated_dir.mkdir(parents=True, exist_ok=True)
 
         urls: list[str] = []
         for idx in range(1, image_count + 1):
-            prompt = self._build_image_prompt(topic, generated_post, idx)
+            prompt = self._build_image_prompt(
+                topic,
+                generated_post,
+                idx,
+                image_style_hint=image_style_hint,
+            )
             image_bytes = self.ai_client.generate_image(prompt)
             filename = (
                 f"topic-{topic.id}-{self._slugify(topic.category.value)}-"
@@ -282,13 +338,17 @@ class GenerationService:
         retry_limit: int = 3,
         generate_images: bool = False,
         image_count: int = 1,
+        image_style_hint: str | None = None,
+        prompt_override: str | None = None,
+        min_words: int | None = None,
+        max_words: int | None = None,
     ) -> bool:
         self.topic_repository.update_generated_post(
             topic.id,
             TopicStatus.GENERATING,
         )
 
-        prompt = self._build_prompt(topic, template_name)
+        prompt = (prompt_override or "").strip() or self._build_prompt(topic, template_name)
         model = settings.GPT_MODEL
         temperature = settings.GPT_TEMPERATURE
         max_tokens = settings.GPT_MAX_TOKENS
@@ -309,6 +369,25 @@ class GenerationService:
                     raise ValueError("AI returned empty generated content.")
 
                 generated_post = self._enrich_generated_post_with_hashtags(topic, generated_post)
+
+                if min_words is not None and max_words is not None:
+                    word_count = self._word_count(generated_post)
+                    if word_count > max_words or word_count < min_words:
+                        generated_post = self._rewrite_with_word_limit(
+                            topic,
+                            generated_post,
+                            min_words,
+                            max_words,
+                        )
+                        generated_post = self._enrich_generated_post_with_hashtags(topic, generated_post)
+                        word_count = self._word_count(generated_post)
+
+                        if word_count > max_words:
+                            generated_post = self._trim_to_word_limit(generated_post, max_words)
+                        if word_count < min_words:
+                            raise ValueError(
+                                f"Generated content too short ({word_count} words)."
+                            )
 
                 self.topic_repository.update_generated_post(
                     topic.id,
@@ -336,7 +415,12 @@ class GenerationService:
                 if generate_images:
                     count = max(1, min(2, int(image_count)))
                     try:
-                        image_urls = self._save_images(topic, generated_post, count)
+                        image_urls = self._save_images(
+                            topic,
+                            generated_post,
+                            count,
+                            image_style_hint=image_style_hint,
+                        )
                         if image_urls:
                             publish_service = PublishService(self.db)
                             for image_url in image_urls:

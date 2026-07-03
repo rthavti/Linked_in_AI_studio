@@ -73,6 +73,12 @@ main {
   display: block;
 }
 
+.home-top-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
 .home-hero {
   display: grid;
   grid-template-columns: 1.5fr 1fr;
@@ -113,6 +119,12 @@ main {
   background: rgba(255, 255, 255, 0.12);
 }
 
+.timezone-control-outside {
+  margin-top: 0;
+  border-color: #d1d5db;
+  background: #f8fafc;
+}
+
 .timezone-control label {
   font-size: 0.83rem;
   font-weight: 700;
@@ -131,6 +143,17 @@ main {
 .hero-health-strip {
   display: grid;
   gap: 10px;
+}
+
+.timezone-control-outside label {
+  color: #0f172a;
+  opacity: 1;
+}
+
+.timezone-control-outside select {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #111827;
 }
 
 .hero-health-chip {
@@ -903,6 +926,29 @@ code {
   gap: 8px;
 }
 
+#campaign-form {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+#campaign-form input[type="text"],
+#campaign-form input[type="date"],
+#campaign-form input[type="time"],
+#campaign-form input[type="number"],
+#campaign-form select,
+#campaign-form input[type="file"] {
+  width: 100%;
+}
+
+#campaigns-table-container .compact-row {
+  align-items: center;
+}
+
+.campaign-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .topic-actions {
   display: flex;
   gap: 8px;
@@ -1010,6 +1056,15 @@ pre {
 
   .home-hero {
     grid-template-columns: 1fr;
+  }
+
+  .home-top-bar {
+    justify-content: stretch;
+  }
+
+  .timezone-control-outside {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .table-controls {

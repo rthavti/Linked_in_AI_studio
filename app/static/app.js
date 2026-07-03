@@ -87,6 +87,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const homePipelineRange = document.getElementById('home-pipeline-range');
   const homeCategoryChart = document.getElementById('home-category-chart');
   const displayTimezoneSelect = document.getElementById('display-timezone');
+  const campaignForm = document.getElementById('campaign-form');
+  const campaignNameInput = document.getElementById('campaign-name');
+  const campaignDescriptionInput = document.getElementById('campaign-description');
+  const campaignStartDateInput = document.getElementById('campaign-start-date');
+  const campaignPublishTimeInput = document.getElementById('campaign-publish-time');
+  const campaignTimezoneInput = document.getElementById('campaign-timezone');
+  const campaignMinWordsInput = document.getElementById('campaign-min-words');
+  const campaignMaxWordsInput = document.getElementById('campaign-max-words');
+  const campaignMaxAttemptsInput = document.getElementById('campaign-max-attempts');
+  const campaignAutoApproveInput = document.getElementById('campaign-auto-approve');
+  const campaignAutoPublishInput = document.getElementById('campaign-auto-publish');
+  const campaignAutoGenerateImagesInput = document.getElementById('campaign-auto-generate-images');
+  const campaignVisualStyleInput = document.getElementById('campaign-visual-style');
+  const campaignImageCountInput = document.getElementById('campaign-image-count');
+  const campaignFileInput = document.getElementById('campaign-file');
+  const campaignCreateButton = document.getElementById('campaign-create-button');
+  const campaignMessage = document.getElementById('campaign-message');
+  const campaignsTableContainer = document.getElementById('campaigns-table-container');
   const topicDrawer = document.getElementById('topic-drawer');
   const drawerBackdrop = document.getElementById('drawer-backdrop');
   const drawerClose = document.getElementById('drawer-close');
@@ -210,6 +228,18 @@ TIMEZONE=Asia/Kolkata`;
     }).then(checkStatus),
     getPublishHistory: () => fetchWithTimeout('/publish/history').then(checkStatus),
     getPublishQueue: () => fetchWithTimeout('/publish/queue').then(checkStatus),
+    getCampaigns: () => fetchWithTimeout('/campaigns/').then(checkStatus),
+    getCampaign: (id) => fetchWithTimeout(`/campaigns/${id}`).then(checkStatus),
+    createCampaign: (formData) => fetchWithTimeout('/campaigns/upload', {
+      method: 'POST',
+      body: formData,
+    }, 120000).then(checkStatus),
+    pauseCampaign: (id) => fetchWithTimeout(`/campaigns/${id}/pause`, {
+      method: 'POST',
+    }).then(checkStatus),
+    resumeCampaign: (id) => fetchWithTimeout(`/campaigns/${id}/resume`, {
+      method: 'POST',
+    }).then(checkStatus),
   };
 
   let currentTopics = [];
@@ -223,6 +253,7 @@ TIMEZONE=Asia/Kolkata`;
   let realtimeConnected = false;
   let realtimeEventSource = null;
   const LIVE_REFRESH_INTERVAL_MS = 30000;
+  let currentCampaigns = [];
   const DEFAULT_DISPLAY_TIMEZONE = 'Asia/Kolkata';
   const DISPLAY_TIMEZONE_STORAGE_KEY = 'linkedin.ai.display.timezone';
   let displayTimeZone = localStorage.getItem(DISPLAY_TIMEZONE_STORAGE_KEY) || DEFAULT_DISPLAY_TIMEZONE;
@@ -1126,7 +1157,7 @@ TIMEZONE=Asia/Kolkata`;
       return;
     }
 
-    if (!['home', 'history', 'schedule', 'topics'].includes(activeSection)) {
+    if (!['home', 'history', 'schedule', 'topics', 'campaigns'].includes(activeSection)) {
       return;
     }
 
@@ -1185,6 +1216,8 @@ TIMEZONE=Asia/Kolkata`;
     source.addEventListener('publish.completed', triggerRefresh);
     source.addEventListener('publish.failed', triggerRefresh);
     source.addEventListener('publish.worker.ran', triggerRefresh);
+    source.addEventListener('campaign.updated', triggerRefresh);
+    source.addEventListener('campaign.item.updated', triggerRefresh);
 
     source.onerror = () => {
       realtimeConnected = false;
@@ -1270,6 +1303,90 @@ TIMEZONE=Asia/Kolkata`;
     `;
 
     topicsTableContainer.innerHTML = header;
+  }
+
+  function campaignProgress(campaign) {
+    const items = campaign.items || [];
+    const total = items.length;
+    const published = items.filter((item) => item.status === 'PUBLISHED').length;
+    const failed = items.filter((item) => item.status === 'FAILED').length;
+    return { total, published, failed };
+  }
+
+  function renderCampaignsTable(campaigns) {
+    if (!campaignsTableContainer) {
+      return;
+    }
+
+    if (!campaigns.length) {
+      campaignsTableContainer.innerHTML = '<p>No campaigns yet. Create your first daily learning campaign from Excel.</p>';
+      return;
+    }
+
+    campaignsTableContainer.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Campaign</th>
+            <th>Status</th>
+            <th>Schedule</th>
+            <th>Progress</th>
+            <th>Guardrails</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${campaigns.map((campaign) => {
+            const progress = campaignProgress(campaign);
+            const nextItem = (campaign.items || []).find((item) => item.status === 'PENDING' || item.status === 'RETRY' || item.status === 'PROCESSING');
+            const scheduleLabel = nextItem
+              ? `${formatDisplayDateTime(nextItem.scheduled_for)} ${getDisplayTimeZoneLabel()}`
+              : 'No pending item';
+
+            const styleLabel = String(campaign.visual_style || 'auto').replace(/_/g, ' ');
+            const imageGuardrail = campaign.auto_generate_images
+              ? `${campaign.image_count} image${campaign.image_count > 1 ? 's' : ''}/post • ${styleLabel}`
+              : 'images disabled';
+
+            return `
+              <tr>
+                <td>
+                  <strong>${campaign.name}</strong><br/>
+                  <span>${campaign.description || 'Learning automation campaign'}</span>
+                </td>
+                <td>${renderStatusChip(campaign.status)}</td>
+                <td>${campaign.publish_time} (${campaign.timezone})<br/>Next: ${scheduleLabel}</td>
+                <td>${progress.published}/${progress.total} published${progress.failed ? ` • ${progress.failed} failed` : ''}</td>
+                <td>${campaign.min_words}-${campaign.max_words} words • max attempts ${campaign.max_attempts}<br/>${imageGuardrail}</td>
+                <td>
+                  <div class="campaign-actions">
+                    ${campaign.status === 'ACTIVE'
+                      ? `<button type="button" data-action="pause-campaign" data-id="${campaign.id}">Pause</button>`
+                      : `<button type="button" data-action="resume-campaign" data-id="${campaign.id}">Resume</button>`}
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  async function loadCampaigns() {
+    if (!campaignsTableContainer) {
+      return;
+    }
+
+    try {
+      const campaigns = await api.getCampaigns();
+      const detailed = await Promise.all(campaigns.map((campaign) => api.getCampaign(campaign.id)));
+      currentCampaigns = detailed;
+      renderCampaignsTable(currentCampaigns);
+    } catch (error) {
+      console.error(error);
+      campaignsTableContainer.innerHTML = '<p>Unable to load campaigns.</p>';
+    }
   }
 
   function filterAndSortTopics() {
@@ -1383,6 +1500,7 @@ TIMEZONE=Asia/Kolkata`;
       renderApprovedScheduleTopics(topics);
       await loadHomeDashboard();
       await loadPublishQueue();
+      await loadCampaigns();
     } catch (error) {
       console.error(error);
       topicMessage.textContent = 'Unable to load topics.';
@@ -2284,6 +2402,110 @@ TIMEZONE=Asia/Kolkata`;
   historySearch.addEventListener('input', () => renderHistoryTable(currentTopics));
   historyCategoryFilter.addEventListener('change', () => renderHistoryTable(currentTopics));
   historyStatusFilter.addEventListener('change', () => renderHistoryTable(currentTopics));
+
+  if (campaignCreateButton) {
+    campaignCreateButton.addEventListener('click', async () => {
+      if (!campaignForm || !campaignFileInput?.files?.length) {
+        if (campaignMessage) {
+          campaignMessage.textContent = 'Please choose an Excel file for campaign topics.';
+        }
+        return;
+      }
+
+      try {
+        campaignCreateButton.disabled = true;
+        if (campaignMessage) {
+          campaignMessage.textContent = 'Creating campaign...';
+        }
+
+        const formData = new FormData();
+        formData.append('name', campaignNameInput?.value?.trim() || 'Learning Campaign');
+        formData.append('description', campaignDescriptionInput?.value?.trim() || '');
+        formData.append('start_date', campaignStartDateInput?.value || '');
+        formData.append('publish_time', campaignPublishTimeInput?.value || '09:00');
+        formData.append('timezone', campaignTimezoneInput?.value || 'Asia/Kolkata');
+        formData.append('auto_approve', String(Boolean(campaignAutoApproveInput?.checked)));
+        formData.append('auto_publish', String(Boolean(campaignAutoPublishInput?.checked)));
+        formData.append('auto_generate_images', String(Boolean(campaignAutoGenerateImagesInput?.checked)));
+        formData.append('visual_style', campaignVisualStyleInput?.value || 'auto');
+        formData.append('image_count', String(Number(campaignImageCountInput?.value || 1)));
+        formData.append('max_attempts', String(Number(campaignMaxAttemptsInput?.value || 3)));
+        formData.append('min_words', String(Number(campaignMinWordsInput?.value || 120)));
+        formData.append('max_words', String(Number(campaignMaxWordsInput?.value || 320)));
+        formData.append('file', campaignFileInput.files[0]);
+
+        const created = await api.createCampaign(formData);
+        if (campaignMessage) {
+          campaignMessage.textContent = `Campaign created: ${created.name}. ${created.items?.length || 0} days scheduled.`;
+        }
+        campaignForm.reset();
+        if (campaignPublishTimeInput) {
+          campaignPublishTimeInput.value = '09:00';
+        }
+        if (campaignTimezoneInput) {
+          campaignTimezoneInput.value = 'Asia/Kolkata';
+        }
+        if (campaignAutoApproveInput) {
+          campaignAutoApproveInput.checked = true;
+        }
+        if (campaignAutoPublishInput) {
+          campaignAutoPublishInput.checked = true;
+        }
+        if (campaignAutoGenerateImagesInput) {
+          campaignAutoGenerateImagesInput.checked = true;
+        }
+        if (campaignVisualStyleInput) {
+          campaignVisualStyleInput.value = 'auto';
+        }
+        if (campaignImageCountInput) {
+          campaignImageCountInput.value = '1';
+        }
+        await loadCampaigns();
+      } catch (error) {
+        console.error(error);
+        if (campaignMessage) {
+          campaignMessage.textContent = error.message || 'Unable to create campaign.';
+        }
+      } finally {
+        campaignCreateButton.disabled = false;
+      }
+    });
+  }
+
+  if (campaignsTableContainer) {
+    campaignsTableContainer.addEventListener('click', async (event) => {
+      const button = event.target.closest('button[data-action]');
+      if (!button?.dataset.id) {
+        return;
+      }
+
+      const campaignId = Number(button.dataset.id);
+      if (!campaignId) {
+        return;
+      }
+
+      try {
+        if (button.dataset.action === 'pause-campaign') {
+          await api.pauseCampaign(campaignId);
+          if (campaignMessage) {
+            campaignMessage.textContent = 'Campaign paused.';
+          }
+        }
+        if (button.dataset.action === 'resume-campaign') {
+          await api.resumeCampaign(campaignId);
+          if (campaignMessage) {
+            campaignMessage.textContent = 'Campaign resumed.';
+          }
+        }
+        await loadCampaigns();
+      } catch (error) {
+        console.error(error);
+        if (campaignMessage) {
+          campaignMessage.textContent = error.message || 'Campaign action failed.';
+        }
+      }
+    });
+  }
 
   if (generateImagesToggle) {
     generateImagesToggle.addEventListener('change', () => syncGenerateImageOptionState('main'));
