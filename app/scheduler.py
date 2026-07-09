@@ -4,12 +4,14 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from app.config import settings
 from app.logger import logger
+from app.repositories.engagement_repository import EngagementRepository
 from app.repositories.schedule_repository import ScheduleRepository
 from app.repositories.topic_repository import TopicRepository
 from app.database import SessionLocal
 from app.realtime import publish_event
 from app.services.generation_service import GenerationService
 from app.services.learning_campaign_service import LearningCampaignService
+from app.services.engagement_service import EngagementService
 from app.services.publish_service import PublishService
 
 
@@ -36,6 +38,20 @@ def schedule_jobs():
             id="linkedin_publish_queue_worker",
             replace_existing=True,
         )
+
+        engagement_repo = EngagementRepository(session)
+        engagement_settings = engagement_repo.get_settings()
+        run_time = (engagement_settings.run_time if engagement_settings else "09:30") or "09:30"
+        run_hour, run_minute = [int(part) for part in run_time.split(":")]
+
+        scheduler.add_job(
+            run_daily_engagement_scan,
+            CronTrigger(hour=run_hour, minute=run_minute),
+            id="linkedin_engagement_daily_scan",
+            replace_existing=True,
+        )
+
+        logger.info("Registered scheduler job: linkedin_engagement_daily_scan at %s", run_time)
 
         logger.info("Registered scheduler job: linkedin_publish_queue_worker every 1 minute")
 
@@ -129,6 +145,20 @@ def process_due_publish_queue():
             logger.info("Processed %s queued LinkedIn publish jobs.", processed)
         if campaign_processed:
             logger.info("Processed %s learning campaign items.", campaign_processed)
+    finally:
+        session.close()
+
+
+def run_daily_engagement_scan():
+    logger.info("Running daily AI engagement scan.")
+    session = SessionLocal()
+    try:
+        service = EngagementService(session)
+        result = service.run_daily_scan()
+        publish_event("engagement.scan.ran", result)
+        logger.info("Daily engagement scan result: %s", result)
+    except Exception:
+        logger.exception("Daily engagement scan failed.")
     finally:
         session.close()
 

@@ -11,6 +11,9 @@ class LinkedInClient:
     PROFILE_URL = "https://api.linkedin.com/v2/me"
     SHARE_URL = "https://api.linkedin.com/v2/ugcPosts"
     ASSET_REGISTER_URL = "https://api.linkedin.com/v2/assets?action=registerUpload"
+    SOCIAL_ACTIONS_URL = "https://api.linkedin.com/v2/socialActions"
+    SEARCH_URL = "https://api.linkedin.com/v2/search"
+    REST_POSTS_URL = "https://api.linkedin.com/rest/posts"
 
     def __init__(self):
         self.client_id = settings.LINKEDIN_CLIENT_ID
@@ -175,3 +178,127 @@ class LinkedInClient:
         resp = httpx.post(self.SHARE_URL, json=body, headers=headers, timeout=30)
         resp.raise_for_status()
         return resp.json()
+
+    def comment_on_post(
+        self,
+        access_token: str,
+        post_urn: str,
+        author_urn: str,
+        comment_text: str,
+    ) -> dict:
+        encoded_urn = urllib.parse.quote(post_urn, safe="")
+        url = f"{self.SOCIAL_ACTIONS_URL}/{encoded_urn}/comments"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+            "X-Restli-Protocol-Version": "2.0.0",
+        }
+        body = {
+            "actor": author_urn,
+            "message": {
+                "text": comment_text,
+            },
+        }
+        resp = httpx.post(url, json=body, headers=headers, timeout=30)
+        resp.raise_for_status()
+        return resp.json() if resp.text else {"status": resp.status_code}
+
+    def is_post_accessible(self, access_token: str, post_urn: str) -> bool:
+        encoded_urn = urllib.parse.quote(post_urn, safe="")
+        url = f"{self.SOCIAL_ACTIONS_URL}/{encoded_urn}"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "X-Restli-Protocol-Version": "2.0.0",
+        }
+        resp = httpx.get(url, headers=headers, timeout=30)
+        if resp.status_code == 404:
+            return False
+        if resp.status_code >= 400:
+            raise ValueError(f"LinkedIn accessibility check failed with {resp.status_code}.")
+        return True
+
+    def _parse_search_post_elements(self, payload: dict) -> list[dict]:
+        rows: list[dict] = []
+        elements = payload.get("elements") if isinstance(payload, dict) else None
+        if not isinstance(elements, list):
+            return rows
+
+        for item in elements:
+            if not isinstance(item, dict):
+                continue
+
+            post_url = item.get("url") or item.get("permalink") or item.get("postUrl")
+            post_urn = item.get("id") or item.get("entityUrn") or item.get("urn")
+            author = item.get("author") or item.get("owner") or item.get("createdBy") or ""
+            content = item.get("commentary") or item.get("text") or item.get("postContent") or ""
+
+            if isinstance(content, dict):
+                content = content.get("text") or content.get("raw") or ""
+
+            reactions = item.get("reactionCount") or item.get("numLikes") or 0
+            language = item.get("contentLanguage") or item.get("language") or "en"
+
+            if post_urn and not post_url:
+                post_url = f"https://www.linkedin.com/feed/update/{post_urn}"
+
+            if not post_url or not content:
+                continue
+
+            rows.append(
+                {
+                    "post_url": str(post_url),
+                    "post_urn": str(post_urn) if post_urn else None,
+                    "post_author": str(author) if author else "",
+                    "post_content": str(content),
+                    "post_language": str(language),
+                    "post_reaction_count": int(reactions or 0),
+                    "is_company_page": False,
+                    "is_sponsored": False,
+                    "is_recruiter": False,
+                    "is_repost": False,
+                }
+            )
+
+        return rows
+
+    def search_posts_by_topic(self, access_token: str, topic: str, count: int = 10) -> list[dict]:
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "X-Restli-Protocol-Version": "2.0.0",
+        }
+        safe_count = max(1, min(int(count or 10), 50))
+        params = {
+            "q": "searchEntity",
+            "keywords": topic,
+            "count": safe_count,
+            "start": 0,
+        }
+
+        resp = httpx.get(self.SEARCH_URL, headers=headers, params=params, timeout=30)
+        if resp.status_code < 400:
+            rows = self._parse_search_post_elements(resp.json())
+            if rows:
+                return rows[:safe_count]
+
+        rest_headers = {
+            "Authorization": f"Bearer {access_token}",
+            "X-Restli-Protocol-Version": "2.0.0",
+            "Linkedin-Version": "202404",
+        }
+        rest_params = {
+            "q": "search",
+            "keywords": topic,
+            "count": safe_count,
+            "start": 0,
+        }
+        rest_resp = httpx.get(self.REST_POSTS_URL, headers=rest_headers, params=rest_params, timeout=30)
+        if rest_resp.status_code < 400:
+            rows = self._parse_search_post_elements(rest_resp.json())
+            return rows[:safe_count]
+
+        detail = "LinkedIn direct post search is not available for current app scopes or API product access."
+        if resp.status_code >= 400:
+            detail = f"LinkedIn search API error {resp.status_code}."
+        if rest_resp.status_code >= 400:
+            detail = f"{detail} REST posts search error {rest_resp.status_code}."
+        raise ValueError(detail)

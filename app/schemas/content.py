@@ -17,6 +17,17 @@ class ContentGenerationResponse(BaseModel):
 class ContentGenerationRequest(BaseModel):
     generate_images: bool = False
     image_count: int = Field(default=1, ge=1, le=2)
+    image_style_hint: str | None = None
+    visual_template: Literal[
+        "auto",
+        "matrix_2x2",
+        "tool_comparison",
+        "flow_diagram",
+        "architecture_diagram",
+        "timeline",
+        "checklist",
+    ] = "auto"
+    image_size: Literal["1024x1024", "1536x1024", "1024x1536"] = "1536x1024"
 
 
 class ContentEnhanceRequest(BaseModel):
@@ -45,3 +56,18 @@ class TopicGeneratedImagesResponse(BaseModel):
     topic_id: int
     image_urls: list[str]
     image_error: str | None = None
+
+
+class TopicImageGenerateRequest(BaseModel):
+    image_count: int = Field(default=1, ge=1, le=2)
+    image_style_hint: str | None = None
+    visual_template: Literal[
+        "auto",
+        "matrix_2x2",
+        "tool_comparison",
+        "flow_diagram",
+        "architecture_diagram",
+        "timeline",
+        "checklist",
+    ] = "auto"
+    image_size: Literal["1024x1024", "1536x1024", "1024x1536"] = "1536x1024"

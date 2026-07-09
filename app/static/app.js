@@ -13,8 +13,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const trendingButton = document.getElementById('trending-button');
   const generateButton = document.getElementById('generate-button');
   const generateTargetInfo = document.getElementById('generate-target-info');
+  const generatePendingTopicSelect = document.getElementById('generate-pending-topic-select');
   const generateImagesToggle = document.getElementById('generate-images-toggle');
   const generateImageCount = document.getElementById('generate-image-count');
+  const generateVisualTemplate = document.getElementById('generate-visual-template');
+  const generateImageSize = document.getElementById('generate-image-size');
+  const generateImageStyleHint = document.getElementById('generate-image-style-hint');
   const scheduleMessage = document.getElementById('schedule-message');
   const autoScheduleHelper = document.getElementById('auto-schedule-helper');
   const approvedTopicHelper = document.getElementById('approved-topic-helper');
@@ -43,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const tokenSummary = document.getElementById('token-summary');
   const copyButton = document.getElementById('copy-button');
   const regenerateButton = document.getElementById('regenerate-button');
+  const generateImagesOnlyButton = document.getElementById('generate-images-only-button');
   const enhanceButton = document.getElementById('enhance-button');
   const saveDraftButton = document.getElementById('save-draft-button');
   const approveButton = document.getElementById('approve-button');
@@ -63,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const publishingHardeningList = document.getElementById('publishing-hardening-list');
   const settingsMessage = document.getElementById('settings-message');
   const connectLinkedinButton = document.getElementById('connect-linkedin-button');
+  const disconnectLinkedinButton = document.getElementById('disconnect-linkedin-button');
   const connectLinkedinMessage = document.getElementById('connect-linkedin-message');
   const oauthMissingHint = document.getElementById('oauth-missing-hint');
   const topicSearch = document.getElementById('topic-search');
@@ -105,6 +111,40 @@ document.addEventListener('DOMContentLoaded', () => {
   const campaignCreateButton = document.getElementById('campaign-create-button');
   const campaignMessage = document.getElementById('campaign-message');
   const campaignsTableContainer = document.getElementById('campaigns-table-container');
+  const engagementSettingsForm = document.getElementById('engagement-settings-form');
+  const engagementEnabledInput = document.getElementById('engagement-enabled');
+  const engagementRequireReviewInput = document.getElementById('engagement-require-review');
+  const engagementAutoPostInput = document.getElementById('engagement-auto-post');
+  const engagementPostsPerDayInput = document.getElementById('engagement-posts-per-day');
+  const engagementCommentsPerDayInput = document.getElementById('engagement-comments-per-day');
+  const engagementMinReactionsInput = document.getElementById('engagement-min-reactions');
+  const engagementAuthorCooldownInput = document.getElementById('engagement-author-cooldown');
+  const engagementRunTimeInput = document.getElementById('engagement-run-time');
+  const engagementStyleInput = document.getElementById('engagement-style');
+  const engagementTopicsInput = document.getElementById('engagement-topics');
+  const engagementBlockedKeywordsInput = document.getElementById('engagement-blocked-keywords');
+  const engagementOwnIdentifiersInput = document.getElementById('engagement-own-identifiers');
+  const engagementSaveSettingsButton = document.getElementById('engagement-save-settings');
+  const engagementTopicConfigForm = document.getElementById('engagement-topic-config-form');
+  const engagementTopicNameInput = document.getElementById('engagement-topic-name');
+  const engagementTopicStyleInput = document.getElementById('engagement-topic-style');
+  const engagementTopicMinReactionsInput = document.getElementById('engagement-topic-min-reactions');
+  const engagementTopicPostsInput = document.getElementById('engagement-topic-posts');
+  const engagementTopicCommentsInput = document.getElementById('engagement-topic-comments');
+  const engagementTopicAutoPostInput = document.getElementById('engagement-topic-auto-post');
+  const engagementTopicRequireReviewInput = document.getElementById('engagement-topic-require-review');
+  const engagementTopicAddButton = document.getElementById('engagement-topic-add-button');
+  const engagementTopicRunDirectButton = document.getElementById('engagement-topic-run-direct-button');
+  const engagementSearchModeIndicator = document.getElementById('engagement-search-mode-indicator');
+  const engagementTopicConfigList = document.getElementById('engagement-topic-config-list');
+  const engagementCandidatesFileInput = document.getElementById('engagement-candidates-file');
+  const engagementLoadFileButton = document.getElementById('engagement-load-file-button');
+  const engagementCandidatesJsonInput = document.getElementById('engagement-candidates-json');
+  const engagementScanButton = document.getElementById('engagement-scan-button');
+  const engagementRunDailyButton = document.getElementById('engagement-run-daily-button');
+  const engagementCommentsContainer = document.getElementById('engagement-comments-container');
+  const engagementAnalyticsContainer = document.getElementById('engagement-analytics-container');
+  const engagementMessage = document.getElementById('engagement-message');
   const topicDrawer = document.getElementById('topic-drawer');
   const drawerBackdrop = document.getElementById('drawer-backdrop');
   const drawerClose = document.getElementById('drawer-close');
@@ -193,6 +233,11 @@ TIMEZONE=Asia/Kolkata`;
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     }, 120000).then(checkStatus),
+    generateTopicImages: (id, payload = {}) => fetchWithTimeout(`/content/${id}/generate-images`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }, 120000).then(checkStatus),
     regenerateTopic: (id, payload = {}) => fetchWithTimeout(`/topics/${id}/regenerate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -218,6 +263,7 @@ TIMEZONE=Asia/Kolkata`;
     approveTopic: (id) => fetchWithTimeout(`/topics/${id}/approve`, { method: 'POST' }).then(checkStatus),
     getOAuthHealth: () => fetchWithTimeout('/publish/oauth/health').then(checkStatus),
     startLinkedInOAuth: () => fetchWithTimeout('/publish/connect').then(checkStatus),
+    disconnectLinkedIn: () => fetchWithTimeout('/publish/disconnect', { method: 'POST' }).then(checkStatus),
     enqueuePublish: (payload) => fetchWithTimeout('/publish/queue', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -240,9 +286,51 @@ TIMEZONE=Asia/Kolkata`;
     resumeCampaign: (id) => fetchWithTimeout(`/campaigns/${id}/resume`, {
       method: 'POST',
     }).then(checkStatus),
+    getEngagementSettings: () => fetchWithTimeout('/engagement/settings').then(checkStatus),
+    updateEngagementSettings: (payload) => fetchWithTimeout('/engagement/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(checkStatus),
+    scanEngagementCandidates: (payload) => fetchWithTimeout('/engagement/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }, 120000).then(checkStatus),
+    runDailyEngagementScan: () => fetchWithTimeout('/engagement/run-daily', {
+      method: 'POST',
+    }).then(checkStatus),
+    listEngagementComments: (status = '', limit = 100) => {
+      const params = new URLSearchParams();
+      if (status) params.set('status', status);
+      params.set('limit', String(limit));
+      return fetchWithTimeout(`/engagement/comments?${params.toString()}`).then(checkStatus);
+    },
+    approveEngagementComment: (id, payload) => fetchWithTimeout(`/engagement/comments/${id}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(checkStatus),
+    skipEngagementComment: (id, payload) => fetchWithTimeout(`/engagement/comments/${id}/skip`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(checkStatus),
+    getEngagementAnalytics: (days = 1) => fetchWithTimeout(`/engagement/analytics?days=${days}`).then(checkStatus),
+    scanEngagementDirect: (payload) => fetchWithTimeout('/engagement/scan-direct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }, 120000).then(checkStatus),
+    scanEngagementCollector: (payload) => fetchWithTimeout('/engagement/scan-collector', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }, 120000).then(checkStatus),
   };
 
   let currentTopics = [];
+  let selectedPendingGenerateTopicId = null;
   let currentTopicId = null;
   let currentLatestHistory = null;
   let latestPublishHistoryByTopic = new Map();
@@ -254,6 +342,8 @@ TIMEZONE=Asia/Kolkata`;
   let realtimeEventSource = null;
   const LIVE_REFRESH_INTERVAL_MS = 30000;
   let currentCampaigns = [];
+  let currentEngagementComments = [];
+  let currentEngagementTopicConfigs = [];
   const DEFAULT_DISPLAY_TIMEZONE = 'Asia/Kolkata';
   const DISPLAY_TIMEZONE_STORAGE_KEY = 'linkedin.ai.display.timezone';
   let displayTimeZone = localStorage.getItem(DISPLAY_TIMEZONE_STORAGE_KEY) || DEFAULT_DISPLAY_TIMEZONE;
@@ -392,9 +482,15 @@ TIMEZONE=Asia/Kolkata`;
   function getGenerationImageOptions() {
     const enabled = Boolean(generateImagesToggle?.checked || drawerGenerateImagesToggle?.checked);
     const count = Number(generateImageCount?.value || drawerGenerateImageCount?.value || 1);
+    const visualTemplate = String(generateVisualTemplate?.value || 'auto').trim() || 'auto';
+    const imageSize = String(generateImageSize?.value || '1536x1024').trim() || '1536x1024';
+    const imageStyleHint = String(generateImageStyleHint?.value || '').trim() || null;
     return {
       generate_images: enabled,
       image_count: enabled ? Math.min(2, Math.max(1, count)) : 1,
+      visual_template: visualTemplate,
+      image_size: imageSize,
+      image_style_hint: imageStyleHint,
     };
   }
 
@@ -435,7 +531,50 @@ TIMEZONE=Asia/Kolkata`;
       return;
     }
 
-    generateTargetInfo.textContent = 'Target: Next pending topic (oldest NEW).';
+    if (generatePendingTopicSelect && generatePendingTopicSelect.value) {
+      const selectedId = Number(generatePendingTopicSelect.value);
+      const selectedTopic = currentTopics.find((item) => item.id === selectedId);
+      if (selectedTopic) {
+        generateTargetInfo.textContent = `Target: Selected pending topic #${selectedTopic.id} - ${selectedTopic.topic}`;
+        return;
+      }
+    }
+
+    generateTargetInfo.textContent = 'Target: Select a pending topic from dropdown.';
+  }
+
+  function renderPendingGenerateTopics(topics) {
+    if (!generatePendingTopicSelect) {
+      return;
+    }
+
+    const pending = (topics || [])
+      .filter((topic) => topic.status === 'NEW')
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+    const currentValue = selectedPendingGenerateTopicId ? String(selectedPendingGenerateTopicId) : '';
+    const hasCurrent = pending.some((topic) => String(topic.id) === currentValue);
+    const selectedValue = hasCurrent ? currentValue : (pending[0] ? String(pending[0].id) : '');
+    selectedPendingGenerateTopicId = selectedValue ? Number(selectedValue) : null;
+
+    generatePendingTopicSelect.innerHTML = `
+      <option value="">Select pending topic...</option>
+      ${pending.map((topic) => `<option value="${topic.id}" ${String(topic.id) === selectedValue ? 'selected' : ''}>#${topic.id} ${topic.topic}</option>`).join('')}
+    `;
+    generatePendingTopicSelect.disabled = pending.length === 0;
+
+    if (!pending.length) {
+      if (generateButton) {
+        generateButton.disabled = true;
+      }
+      generateTargetInfo.textContent = 'Target: No pending topics available.';
+      return;
+    }
+
+    if (generateButton) {
+      generateButton.disabled = false;
+    }
+    renderGenerateTargetInfo();
   }
 
   function applyHookToDraft(hookText) {
@@ -1055,6 +1194,13 @@ TIMEZONE=Asia/Kolkata`;
             : 'Configure LinkedIn OAuth env vars before connecting.';
       }
 
+      if (disconnectLinkedinButton) {
+        disconnectLinkedinButton.disabled = !isLinkedInConnected;
+        disconnectLinkedinButton.title = isLinkedInConnected
+          ? 'Disconnect current LinkedIn account from this app.'
+          : 'No LinkedIn account is currently connected.';
+      }
+
       if (connectLinkedinMessage) {
         connectLinkedinMessage.textContent = isLinkedInConnected
           ? 'LinkedIn account is connected.'
@@ -1152,12 +1298,31 @@ TIMEZONE=Asia/Kolkata`;
     button.addEventListener('click', () => setActiveTab(button.dataset.section));
   });
 
+  function markButtonPressed(button) {
+    if (!button) {
+      return;
+    }
+    button.classList.remove('is-pressed');
+    button.classList.add('is-pressed');
+    window.setTimeout(() => {
+      button.classList.remove('is-pressed');
+    }, 180);
+  }
+
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('button');
+    if (!button) {
+      return;
+    }
+    markButtonPressed(button);
+  });
+
   async function refreshLiveSections() {
     if (document.hidden || isLiveRefreshRunning) {
       return;
     }
 
-    if (!['home', 'history', 'schedule', 'topics', 'campaigns'].includes(activeSection)) {
+    if (!['home', 'history', 'schedule', 'topics', 'campaigns', 'engagement'].includes(activeSection)) {
       return;
     }
 
@@ -1389,6 +1554,189 @@ TIMEZONE=Asia/Kolkata`;
     }
   }
 
+  function renderEngagementComments(comments) {
+    if (!engagementCommentsContainer) {
+      return;
+    }
+
+    if (!comments.length) {
+      engagementCommentsContainer.innerHTML = '<p>No engagement comments found yet.</p>';
+      return;
+    }
+
+    engagementCommentsContainer.innerHTML = comments.map((item) => {
+      const safeTopic = escapeHtml(String(item.topic || '-'));
+      const safeAuthor = escapeHtml(String(item.post_author || '-'));
+      const safeUrl = escapeHtml(String(item.post_url || '#'));
+      const safeComment = escapeHtml(String(item.posted_comment || item.generated_comment || ''));
+      return `
+      <article class="engagement-comment-card">
+        <p class="engagement-topic-title">${safeTopic}</p>
+        <p><strong>Status:</strong> ${renderStatusChip(item.status)}</p>
+        <p><strong>Author:</strong> ${safeAuthor}</p>
+        <p><strong>Post:</strong> <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">Open</a> • Reactions ${item.post_reaction_count}</p>
+        <p><strong>Generated:</strong></p>
+        <textarea id="engagement-comment-${item.id}" rows="5">${safeComment}</textarea>
+        <div class="schedule-inline-actions">
+          ${item.status === 'REVIEW_PENDING' ? `<button type="button" data-action="engagement-approve-only" data-id="${item.id}">Approve Only</button>` : ''}
+          ${item.status === 'REVIEW_PENDING' ? `<button type="button" data-action="engagement-approve" data-id="${item.id}">Approve + Post</button>` : ''}
+          ${item.status === 'APPROVED' ? `<button type="button" data-action="engagement-post-now" data-id="${item.id}">Post Now</button>` : ''}
+          ${item.status === 'REVIEW_PENDING' ? `<button type="button" data-action="engagement-skip" data-id="${item.id}">Skip</button>` : ''}
+          ${item.status === 'POSTED' || item.status === 'AUTO_POSTED' ? '<span>Posted</span>' : ''}
+        </div>
+      </article>
+    `;
+    }).join('');
+  }
+
+  function renderEngagementAnalytics(data) {
+    if (!engagementAnalyticsContainer) {
+      return;
+    }
+
+    engagementAnalyticsContainer.innerHTML = `
+      <div class="compact-list">
+        <div class="compact-row"><span>Generated</span><strong>${data.total_generated}</strong></div>
+        <div class="compact-row"><span>Posted</span><strong>${data.comments_posted}</strong></div>
+        <div class="compact-row"><span>Accepted</span><strong>${data.accepted}</strong></div>
+        <div class="compact-row"><span>Edited</span><strong>${data.edited}</strong></div>
+        <div class="compact-row"><span>Replies</span><strong>${data.replies_received}</strong></div>
+        <div class="compact-row"><span>Likes</span><strong>${data.comment_likes}</strong></div>
+        <div class="compact-row"><span>Best Topic</span><strong>${data.best_topic || '-'}</strong></div>
+        <div class="compact-row"><span>Best Style</span><strong>${data.best_style || '-'}</strong></div>
+      </div>
+    `;
+  }
+
+  function normalizeEngagementTopicConfig(raw) {
+    const topic = String(raw?.topic || '').trim();
+    if (!topic) {
+      throw new Error('Topic is required.');
+    }
+
+    return {
+      topic,
+      style: String(raw?.style || 'professional'),
+      min_reactions: Math.max(0, Number(raw?.min_reactions ?? 50) || 50),
+      posts_to_search: Math.min(50, Math.max(1, Number(raw?.posts_to_search ?? 10) || 10)),
+      comments_per_run: Math.min(20, Math.max(1, Number(raw?.comments_per_run ?? 2) || 2)),
+      auto_post_enabled: Boolean(raw?.auto_post_enabled),
+      require_review: raw?.require_review !== false,
+    };
+  }
+
+  function renderEngagementTopicConfigs(configs) {
+    if (!engagementTopicConfigList) {
+      return;
+    }
+
+    if (!Array.isArray(configs) || !configs.length) {
+      engagementTopicConfigList.innerHTML = '<p>No topic configuration yet. Add one above.</p>';
+      return;
+    }
+
+    engagementTopicConfigList.innerHTML = configs.map((item, idx) => {
+      const safeTopic = escapeHtml(String(item.topic || ''));
+      const safeStyle = escapeHtml(String(item.style || 'professional'));
+      return `
+        <article class="topic-item">
+          <p><strong>${safeTopic}</strong></p>
+          <p>Style: ${safeStyle} • Min reactions: ${Number(item.min_reactions || 0)} • Search: ${Number(item.posts_to_search || 0)} • Comments/run: ${Number(item.comments_per_run || 0)}</p>
+          <p>Auto-post: ${item.auto_post_enabled ? 'Yes' : 'No'} • Require review: ${item.require_review ? 'Yes' : 'No'}</p>
+          <div class="topic-actions">
+            <button type="button" data-action="engagement-topic-edit" data-index="${idx}">Edit</button>
+            <button type="button" data-action="engagement-topic-remove" data-index="${idx}">Remove</button>
+          </div>
+        </article>
+      `;
+    }).join('');
+  }
+
+  function applyEngagementTopicConfigToForm(config) {
+    if (!config) {
+      return;
+    }
+    if (engagementTopicNameInput) engagementTopicNameInput.value = config.topic || '';
+    if (engagementTopicStyleInput) engagementTopicStyleInput.value = config.style || 'professional';
+    if (engagementTopicMinReactionsInput) engagementTopicMinReactionsInput.value = Number(config.min_reactions || 50);
+    if (engagementTopicPostsInput) engagementTopicPostsInput.value = Number(config.posts_to_search || 10);
+    if (engagementTopicCommentsInput) engagementTopicCommentsInput.value = Number(config.comments_per_run || 2);
+    if (engagementTopicAutoPostInput) engagementTopicAutoPostInput.checked = Boolean(config.auto_post_enabled);
+    if (engagementTopicRequireReviewInput) engagementTopicRequireReviewInput.checked = config.require_review !== false;
+  }
+
+  function setEngagementSearchMode(modeText) {
+    if (!engagementSearchModeIndicator) {
+      return;
+    }
+    const suffix = modeText ? String(modeText).trim() : '-';
+    engagementSearchModeIndicator.textContent = `Execution Mode: ${suffix}`;
+  }
+
+  function applyEngagementSettings(settings) {
+    if (!engagementSettingsForm) {
+      return;
+    }
+    engagementEnabledInput.checked = Boolean(settings.enabled);
+    engagementRequireReviewInput.checked = Boolean(settings.require_review);
+    engagementAutoPostInput.checked = Boolean(settings.auto_post_enabled);
+    engagementPostsPerDayInput.value = settings.posts_to_search_per_day;
+    engagementCommentsPerDayInput.value = settings.comments_per_day;
+    engagementMinReactionsInput.value = settings.min_reactions;
+    engagementAuthorCooldownInput.value = settings.author_cooldown_hours;
+    engagementRunTimeInput.value = settings.run_time || '09:30';
+    engagementStyleInput.value = settings.style || 'professional';
+    engagementTopicsInput.value = (settings.topics || []).join(', ');
+    engagementBlockedKeywordsInput.value = (settings.blocked_keywords || []).join(', ');
+    engagementOwnIdentifiersInput.value = (settings.own_author_identifiers || []).join(', ');
+    currentEngagementTopicConfigs = Array.isArray(settings.topic_configs) ? settings.topic_configs.map(normalizeEngagementTopicConfig) : [];
+    renderEngagementTopicConfigs(currentEngagementTopicConfigs);
+  }
+
+  function parseCsvList(value) {
+    return String(value || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  function parseEngagementCandidates(value) {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+    if (Array.isArray(parsed.candidates)) {
+      return parsed.candidates;
+    }
+    throw new Error('Candidates JSON must be an array or { candidates: [] }.');
+  }
+
+  async function loadEngagementPanel() {
+    if (!engagementSettingsForm) {
+      return;
+    }
+    try {
+      const [settings, comments, analytics] = await Promise.all([
+        api.getEngagementSettings(),
+        api.listEngagementComments('', 50),
+        api.getEngagementAnalytics(1),
+      ]);
+      applyEngagementSettings(settings);
+      currentEngagementComments = comments;
+      renderEngagementComments(comments);
+      renderEngagementAnalytics(analytics);
+    } catch (error) {
+      console.error(error);
+      if (engagementMessage) {
+        engagementMessage.textContent = error.message || 'Unable to load engagement panel.';
+      }
+    }
+  }
+
   function filterAndSortTopics() {
     const searchTerm = topicSearch.value.trim().toLowerCase();
     const categoryFilter = filterCategory.value;
@@ -1495,12 +1843,14 @@ TIMEZONE=Asia/Kolkata`;
       }, new Map());
 
       currentTopics = topics;
+      renderPendingGenerateTopics(topics);
       filterAndSortTopics();
       renderHistoryTable(topics);
       renderApprovedScheduleTopics(topics);
       await loadHomeDashboard();
       await loadPublishQueue();
       await loadCampaigns();
+      await loadEngagementPanel();
     } catch (error) {
       console.error(error);
       topicMessage.textContent = 'Unable to load topics.';
@@ -1915,6 +2265,30 @@ TIMEZONE=Asia/Kolkata`;
     });
   }
 
+  if (disconnectLinkedinButton) {
+    disconnectLinkedinButton.addEventListener('click', async () => {
+      if (!isLinkedInConnected) {
+        connectLinkedinMessage.textContent = 'No LinkedIn account is currently connected.';
+        return;
+      }
+
+      disconnectLinkedinButton.disabled = true;
+      connectLinkedinMessage.textContent = 'Disconnecting LinkedIn account...';
+
+      try {
+        await api.disconnectLinkedIn();
+        isLinkedInConnected = false;
+        connectLinkedinMessage.textContent = 'LinkedIn disconnected. Click Connect LinkedIn to reconnect with fresh scopes.';
+        await loadSettingsPanel();
+      } catch (error) {
+        console.error(error);
+        connectLinkedinMessage.textContent = error.message || 'Failed to disconnect LinkedIn account.';
+      } finally {
+        disconnectLinkedinButton.disabled = !isLinkedInConnected;
+      }
+    });
+  }
+
   if (copyOauthCallbackButton && oauthCallbackUrl) {
     copyOauthCallbackButton.addEventListener('click', async () => {
       await navigator.clipboard.writeText(oauthCallbackUrl.value);
@@ -2175,11 +2549,16 @@ TIMEZONE=Asia/Kolkata`;
     generateButton.disabled = true;
     generateButton.textContent = 'Generating...';
     renderGenerateTargetInfo();
-    generateResult.textContent = 'Generating next pending topic (oldest NEW). This can take up to 60 seconds.';
+    generateResult.textContent = 'Generating selected pending topic. This can take up to 60 seconds.';
     try {
       const generationOptions = getGenerationImageOptions();
-      const result = await api.generateContent(generationOptions);
-      const renderedImageResult = await displayGenerateResult(result, {
+      const selectedTopicId = Number(generatePendingTopicSelect?.value || selectedPendingGenerateTopicId || 0);
+      if (!selectedTopicId) {
+        throw new Error('Select a pending topic from dropdown before generating.');
+      }
+      const result = await api.regenerateTopic(selectedTopicId, generationOptions);
+      currentTopicId = result.id;
+      const renderedImageResult = await previewTopic(result.id, {
         forceShowEmptyImages: generationOptions.generate_images,
       });
       await loadTopics();
@@ -2199,6 +2578,14 @@ TIMEZONE=Asia/Kolkata`;
       generateButton.textContent = 'Generate Now';
     }
   });
+
+  if (generatePendingTopicSelect) {
+    generatePendingTopicSelect.addEventListener('change', () => {
+      const selected = Number(generatePendingTopicSelect.value || 0);
+      selectedPendingGenerateTopicId = selected || null;
+      renderGenerateTargetInfo();
+    });
+  }
 
   copyButton.addEventListener('click', async () => {
     const text = previewEditorInput.value.trim() || generatedPost.textContent;
@@ -2271,6 +2658,39 @@ TIMEZONE=Asia/Kolkata`;
       generateResult.textContent = error.message || 'Regeneration failed.';
     }
   });
+
+  if (generateImagesOnlyButton) {
+    generateImagesOnlyButton.addEventListener('click', async () => {
+      if (!currentTopicId) {
+        generateResult.textContent = 'Select a topic first from Topics table to generate visual.';
+        return;
+      }
+
+      try {
+        generateImagesOnlyButton.disabled = true;
+        generateImagesOnlyButton.textContent = 'Generating Visual...';
+        const imageOptions = getGenerationImageOptions();
+        const payload = {
+          image_count: imageOptions.image_count,
+          visual_template: imageOptions.visual_template,
+          image_size: imageOptions.image_size,
+          image_style_hint: imageOptions.image_style_hint,
+        };
+        const result = await api.generateTopicImages(currentTopicId, payload);
+        const imageCount = Array.isArray(result.image_urls) ? result.image_urls.length : 0;
+        await previewTopic(currentTopicId, { forceShowEmptyImages: true });
+        generateResult.textContent = imageCount
+          ? `Generated ${imageCount} image${imageCount > 1 ? 's' : ''} for this topic.`
+          : (result.image_error || 'No images generated. Please retry with another style/template.');
+      } catch (error) {
+        console.error(error);
+        generateResult.textContent = error.message || 'Failed to generate visual for selected topic.';
+      } finally {
+        generateImagesOnlyButton.disabled = false;
+        generateImagesOnlyButton.textContent = 'Generate Visual';
+      }
+    });
+  }
 
   if (enhanceButton) {
     enhanceButton.addEventListener('click', async () => {
@@ -2507,6 +2927,317 @@ TIMEZONE=Asia/Kolkata`;
     });
   }
 
+  if (engagementSaveSettingsButton) {
+    engagementSaveSettingsButton.addEventListener('click', async () => {
+      try {
+        engagementSaveSettingsButton.disabled = true;
+        const payload = {
+          enabled: Boolean(engagementEnabledInput?.checked),
+          require_review: Boolean(engagementRequireReviewInput?.checked),
+          auto_post_enabled: Boolean(engagementAutoPostInput?.checked),
+          posts_to_search_per_day: Number(engagementPostsPerDayInput?.value || 30),
+          comments_per_day: Number(engagementCommentsPerDayInput?.value || 5),
+          min_reactions: Number(engagementMinReactionsInput?.value || 50),
+          author_cooldown_hours: Number(engagementAuthorCooldownInput?.value || 72),
+          run_time: engagementRunTimeInput?.value || '09:30',
+          style: engagementStyleInput?.value || 'professional',
+          topics: parseCsvList(engagementTopicsInput?.value),
+          blocked_keywords: parseCsvList(engagementBlockedKeywordsInput?.value),
+          own_author_identifiers: parseCsvList(engagementOwnIdentifiersInput?.value),
+          topic_configs: currentEngagementTopicConfigs,
+        };
+        const saved = await api.updateEngagementSettings(payload);
+        applyEngagementSettings(saved);
+        if (engagementMessage) {
+          engagementMessage.textContent = 'Engagement settings saved.';
+        }
+      } catch (error) {
+        console.error(error);
+        if (engagementMessage) {
+          engagementMessage.textContent = error.message || 'Unable to save engagement settings.';
+        }
+      } finally {
+        engagementSaveSettingsButton.disabled = false;
+      }
+    });
+  }
+
+  if (engagementTopicAddButton) {
+    engagementTopicAddButton.addEventListener('click', async () => {
+      try {
+        const nextConfig = normalizeEngagementTopicConfig({
+          topic: engagementTopicNameInput?.value,
+          style: engagementTopicStyleInput?.value,
+          min_reactions: engagementTopicMinReactionsInput?.value,
+          posts_to_search: engagementTopicPostsInput?.value,
+          comments_per_run: engagementTopicCommentsInput?.value,
+          auto_post_enabled: engagementTopicAutoPostInput?.checked,
+          require_review: engagementTopicRequireReviewInput?.checked,
+        });
+
+        const withoutCurrent = currentEngagementTopicConfigs.filter(
+          (item) => String(item.topic || '').toLowerCase() !== nextConfig.topic.toLowerCase(),
+        );
+        currentEngagementTopicConfigs = [...withoutCurrent, nextConfig];
+
+        if (engagementTopicsInput) {
+          engagementTopicsInput.value = currentEngagementTopicConfigs.map((item) => item.topic).join(', ');
+        }
+
+        const payload = {
+          topics: currentEngagementTopicConfigs.map((item) => item.topic),
+          topic_configs: currentEngagementTopicConfigs,
+        };
+        const saved = await api.updateEngagementSettings(payload);
+        applyEngagementSettings(saved);
+        if (engagementMessage) {
+          engagementMessage.textContent = `Topic configuration saved for ${nextConfig.topic}.`;
+        }
+      } catch (error) {
+        if (engagementMessage) {
+          engagementMessage.textContent = error.message || 'Unable to add topic configuration.';
+        }
+      }
+    });
+  }
+
+  if (engagementTopicRunDirectButton) {
+    engagementTopicRunDirectButton.addEventListener('click', async () => {
+      try {
+        engagementTopicRunDirectButton.disabled = true;
+        if (!currentEngagementTopicConfigs.length) {
+          throw new Error('Add at least one topic configuration first.');
+        }
+
+        const result = await api.scanEngagementDirect({ topics: currentEngagementTopicConfigs });
+        setEngagementSearchMode('Direct LinkedIn Search');
+        if (engagementMessage) {
+          const byTopic = Object.entries(result.searched_by_topic || {})
+            .map(([topic, count]) => `${topic}: ${count}`)
+            .join(' | ');
+          engagementMessage.textContent = `Direct scan complete. searched ${result.searched}, relevant ${result.relevant}, review ${result.queued_for_review}, posted ${result.posted}, skipped ${result.skipped}.${byTopic ? ` By topic: ${byTopic}` : ''}`;
+        }
+        await loadEngagementPanel();
+      } catch (error) {
+        console.error(error);
+        const message = error?.message || 'Direct LinkedIn scan failed.';
+        const shouldFallback = /linkedin|search api error|rest posts search error|not available for current app scopes/i.test(message);
+
+        if (shouldFallback) {
+          try {
+            const collectorResult = await api.scanEngagementCollector({ topics: currentEngagementTopicConfigs });
+            if (collectorResult.searched > 0) {
+              setEngagementSearchMode('Collector Candidates');
+              if (engagementMessage) {
+                engagementMessage.textContent = `Direct search unavailable, collector scan complete. searched ${collectorResult.searched}, relevant ${collectorResult.relevant}, review ${collectorResult.queued_for_review}, posted ${collectorResult.posted}, skipped ${collectorResult.skipped}.`;
+              }
+              await loadEngagementPanel();
+              return;
+            }
+
+            const rawCandidates = String(engagementCandidatesJsonInput?.value || '').trim();
+            const candidates = parseEngagementCandidates(rawCandidates || '[]');
+            if (!candidates.length) {
+              throw new Error('Direct LinkedIn search is unavailable and collector has no data. Paste/load candidate JSON and click Search LinkedIn + Queue Comments again.');
+            }
+
+            const fallbackStyle = currentEngagementTopicConfigs[0]?.style || engagementStyleInput?.value || 'professional';
+            const result = await api.scanEngagementCandidates({
+              candidates,
+              style: fallbackStyle,
+              auto_post: Boolean(engagementAutoPostInput?.checked),
+            });
+            setEngagementSearchMode('Fallback JSON Candidates');
+            if (engagementMessage) {
+              engagementMessage.textContent = `Direct search unavailable, fallback scan complete. searched ${result.searched}, relevant ${result.relevant}, review ${result.queued_for_review}, posted ${result.posted}, skipped ${result.skipped}.`;
+            }
+            await loadEngagementPanel();
+            return;
+          } catch (fallbackError) {
+            if (engagementMessage) {
+              engagementMessage.textContent = fallbackError?.message || 'Fallback scan failed.';
+            }
+            return;
+          }
+        }
+
+        if (engagementMessage) {
+          engagementMessage.textContent = message;
+        }
+      } finally {
+        engagementTopicRunDirectButton.disabled = false;
+      }
+    });
+  }
+
+  if (engagementTopicConfigList) {
+    engagementTopicConfigList.addEventListener('click', async (event) => {
+      const button = event.target.closest('button[data-action]');
+      if (!button) {
+        return;
+      }
+
+      const index = Number(button.dataset.index || -1);
+      if (Number.isNaN(index) || index < 0 || index >= currentEngagementTopicConfigs.length) {
+        return;
+      }
+
+      if (button.dataset.action === 'engagement-topic-edit') {
+        applyEngagementTopicConfigToForm(currentEngagementTopicConfigs[index]);
+        return;
+      }
+
+      if (button.dataset.action === 'engagement-topic-remove') {
+        const next = currentEngagementTopicConfigs.filter((_, i) => i !== index);
+        currentEngagementTopicConfigs = next;
+        if (engagementTopicsInput) {
+          engagementTopicsInput.value = next.map((item) => item.topic).join(', ');
+        }
+        try {
+          const saved = await api.updateEngagementSettings({
+            topics: next.map((item) => item.topic),
+            topic_configs: next,
+          });
+          applyEngagementSettings(saved);
+          if (engagementMessage) {
+            engagementMessage.textContent = 'Topic configuration removed.';
+          }
+        } catch (error) {
+          if (engagementMessage) {
+            engagementMessage.textContent = error.message || 'Unable to remove topic configuration.';
+          }
+        }
+      }
+    });
+  }
+
+  if (engagementScanButton) {
+    engagementScanButton.addEventListener('click', async () => {
+      try {
+        engagementScanButton.disabled = true;
+        const candidates = parseEngagementCandidates(engagementCandidatesJsonInput?.value || '[]');
+        const result = await api.scanEngagementCandidates({
+          candidates,
+          style: engagementStyleInput?.value || 'professional',
+          auto_post: Boolean(engagementAutoPostInput?.checked),
+        });
+        if (engagementMessage) {
+          engagementMessage.textContent = `Scan complete. searched ${result.searched}, relevant ${result.relevant}, review ${result.queued_for_review}, posted ${result.posted}, skipped ${result.skipped}.`;
+        }
+        await loadEngagementPanel();
+      } catch (error) {
+        console.error(error);
+        if (engagementMessage) {
+          engagementMessage.textContent = error.message || 'Engagement scan failed.';
+        }
+      } finally {
+        engagementScanButton.disabled = false;
+      }
+    });
+  }
+
+  if (engagementLoadFileButton) {
+    engagementLoadFileButton.addEventListener('click', async () => {
+      try {
+        const selectedFile = engagementCandidatesFileInput?.files?.[0];
+        if (!selectedFile) {
+          throw new Error('Choose a JSON file first.');
+        }
+        const text = await selectedFile.text();
+        parseEngagementCandidates(text);
+        if (engagementCandidatesJsonInput) {
+          engagementCandidatesJsonInput.value = text;
+        }
+        if (engagementMessage) {
+          engagementMessage.textContent = `Loaded ${selectedFile.name}.`;
+        }
+      } catch (error) {
+        console.error(error);
+        if (engagementMessage) {
+          engagementMessage.textContent = error.message || 'Unable to load candidate JSON file.';
+        }
+      }
+    });
+  }
+
+  if (engagementRunDailyButton) {
+    engagementRunDailyButton.addEventListener('click', async () => {
+      try {
+        engagementRunDailyButton.disabled = true;
+        const result = await api.runDailyEngagementScan();
+        if (engagementMessage) {
+          engagementMessage.textContent = `Daily scan complete. searched ${result.searched}, relevant ${result.relevant}, review ${result.queued_for_review}, posted ${result.posted}, skipped ${result.skipped}.`;
+        }
+        await loadEngagementPanel();
+      } catch (error) {
+        console.error(error);
+        if (engagementMessage) {
+          engagementMessage.textContent = error.message || 'Daily engagement run failed.';
+        }
+      } finally {
+        engagementRunDailyButton.disabled = false;
+      }
+    });
+  }
+
+  if (engagementCommentsContainer) {
+    engagementCommentsContainer.addEventListener('click', async (event) => {
+      const button = event.target.closest('button[data-action]');
+      if (!button?.dataset.id) {
+        return;
+      }
+
+      const historyId = Number(button.dataset.id);
+      if (!historyId) {
+        return;
+      }
+
+      try {
+        if (button.dataset.action === 'engagement-approve-only') {
+          const editedComment = document.getElementById(`engagement-comment-${historyId}`)?.value?.trim() || null;
+          const result = await api.approveEngagementComment(historyId, {
+            edited_comment: editedComment,
+            post_now: false,
+          });
+          if (engagementMessage) {
+            engagementMessage.textContent = `Comment ${historyId} approved for manual posting.`;
+          }
+          await loadEngagementPanel();
+          return;
+        }
+
+        if (button.dataset.action === 'engagement-approve' || button.dataset.action === 'engagement-post-now') {
+          const editedComment = document.getElementById(`engagement-comment-${historyId}`)?.value?.trim() || null;
+          const result = await api.approveEngagementComment(historyId, {
+            edited_comment: editedComment,
+            post_now: true,
+          });
+          if (engagementMessage) {
+            if (result.status === 'POSTED' || result.status === 'AUTO_POSTED') {
+              engagementMessage.textContent = `Comment ${historyId} posted successfully.`;
+            } else if (result.status === 'APPROVED' && result.skip_reason) {
+              engagementMessage.textContent = `Comment ${historyId} approved but posting failed: ${result.skip_reason}`;
+            } else {
+              engagementMessage.textContent = `Comment ${historyId} approved.`;
+            }
+          }
+        }
+        if (button.dataset.action === 'engagement-skip') {
+          await api.skipEngagementComment(historyId, { reason: 'Skipped from review queue.' });
+          if (engagementMessage) {
+            engagementMessage.textContent = `Comment ${historyId} skipped.`;
+          }
+        }
+        await loadEngagementPanel();
+      } catch (error) {
+        console.error(error);
+        if (engagementMessage) {
+          engagementMessage.textContent = error.message || 'Unable to process engagement review action.';
+        }
+      }
+    });
+  }
+
   if (generateImagesToggle) {
     generateImagesToggle.addEventListener('change', () => syncGenerateImageOptionState('main'));
     generateImageCount?.addEventListener('change', () => syncGenerateImageOptionState('main'));
@@ -2527,6 +3258,7 @@ TIMEZONE=Asia/Kolkata`;
   loadSchedule();
   loadSettingsPanel();
   loadTopics();
+  loadEngagementPanel();
   startLiveRefreshLoop();
   setupRealtimeUpdates();
 });

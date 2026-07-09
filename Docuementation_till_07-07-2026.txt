@@ -1,0 +1,214 @@
+Below is a documentation-ready summary of what has been developed so far, organized by feature area and current behavior.
+
+1. Core Product Scope Achieved
+You now have a working LinkedIn AI Studio web application with:
+
+Topic lifecycle management
+AI content generation and regeneration
+AI image generation (including template-driven visuals)
+LinkedIn OAuth connection and publish workflows
+Engagement engine (candidate scan, review queue, approve/skip, comment posting)
+Topic-driven engagement controls
+Hybrid fallback logic for discovery constraints
+Scheduler and queue support
+Dashboard and history tracking
+Major UX improvements across tabs
+2. Topic Management
+Implemented capabilities:
+
+Create topics manually with category and priority
+Import topics from Excel
+View, filter, sort, and search topics
+Topic state transitions through lifecycle statuses (NEW, GENERATING, READY_FOR_REVIEW, APPROVED, SCHEDULED, PUBLISHED, FAILED)
+Edit generated draft content before publish
+Approve/reject and delete flows
+Key files:
+
+topics.py
+topic.py
+topic_repository.py
+app.js
+index.html
+3. AI Content Generation
+Implemented capabilities:
+
+Generate content from pending topics
+Regenerate content for a selected topic
+Template-based prompting
+Token usage tracking in history
+Word-count governance and rewrite pass (where configured)
+Hashtag enrichment and engagement-focused formatting
+Key files:
+
+generation_service.py
+client.py
+content.py
+content.py
+4. Topic Selection in Generate Tab (New)
+Implemented capabilities:
+
+Generate tab now includes a dropdown of pending topics
+User selects one pending topic explicitly before generating
+Generate action uses selected topic rather than only oldest pending
+Generate button is disabled when no pending topics exist
+Key files:
+
+index.html:323
+app.js:544
+app.js:2513
+5. AI Image Generation
+Implemented capabilities:
+
+Generate images alongside content generation
+On-demand Generate Visual action for selected topic
+Visual template control:
+auto
+matrix_2x2
+tool_comparison
+flow_diagram
+architecture_diagram
+timeline
+checklist
+Image size control:
+1024x1024
+1536x1024
+1024x1536
+Optional style hint injection
+Generated images stored under static generated assets and listed per topic
+Key files:
+
+generation_service.py:97
+content.py:147
+content.py:61
+index.html:333
+app.js:2570
+client.py
+Tests:
+
+test_content_generated_images_api.py
+test_content_generate_topic_images_api.py
+6. LinkedIn OAuth and Connection Management
+Implemented capabilities:
+
+OAuth connect flow
+Callback handling with state validation
+OAuth readiness checks in Settings
+Disconnect flow endpoint existed in backend and is now exposed in UI
+Reconnect support for token refresh/scope refresh workflows
+Key files:
+
+publish.py
+publish_service.py
+index.html:468
+app.js:266
+app.js:2268
+Important operational note:
+OAuth redirect URI must match exactly between env settings and LinkedIn Developer App auth settings.
+
+7. Publishing and Queue
+Implemented capabilities:
+
+Publish topic now
+Enqueue scheduled publish
+Queue listing and retry handling
+Publish history
+Media attach to topic before publish
+Key files:
+
+publish.py
+publish_service.py
+publish_queue_repository.py
+publish_history_repository.py
+8. Engagement Engine (Major Delivered Area)
+Implemented capabilities:
+
+Engagement settings CRUD
+Candidate scan API from JSON payload
+Direct scan API attempt from LinkedIn topic search
+Collector scan API for hybrid fallback ingestion
+Comment generation and review queue
+Approve, approve-and-post, post-now, skip actions
+Analytics summary
+Daily run endpoint
+Post target validation before posting
+Accessibility check and skip reasons recorded when invalid/inaccessible
+Graceful handling of post failures without crashing queue flow
+Key files:
+
+engagement.py
+engagement_service.py
+engagement.py
+linkedin_client.py
+Tests:
+
+test_engagement_service.py
+9. Topic Configurator Inside Engagement
+Implemented capabilities:
+
+Add per-topic engagement configuration
+Per-topic style, min reactions, posts to search, comments per run, auto-post, require-review
+Config list display/edit/remove behaviors in UI
+Persisted in engagement settings storage as topic configs
+Key files:
+
+engagement.py
+engagement_service.py
+engagement_setting.py
+a4b5c6d7e8f9_engagement_topic_configs.py
+patch_engagement_topic_configs.py
+index.html
+app.js
+10. Hybrid Discovery Strategy (Direct + Collector + Manual)
+Implemented capabilities:
+
+First try direct LinkedIn topic search
+If unavailable or blocked, fallback to collector candidates
+If collector empty, fallback to manual JSON input
+UI mode indicator showing current execution mode
+Key files:
+
+engagement.py:67
+engagement_service.py:871
+app.js:2888
+11. Dashboard and Operational Visibility
+Implemented capabilities:
+
+KPI cards for total/pending/generated/published/failed
+Recent topics and recent generated posts
+Health strip and system indicators
+Pipeline flow summary
+Category distribution
+Publish queue board and schedule controls
+Key files:
+
+dashboard.py
+index.html
+app.js
+12. UX and Interaction Improvements
+Implemented capabilities:
+
+Engagement tab visibility and usability improvements
+Active tab and pressed-state visual feedback
+Better button and action feedback
+Topic/title displayed prominently in engagement cards
+Cache-busting adjustments for frontend refresh consistency
+Improved helper text and flow messaging
+Key files:
+
+styles.css
+index.html
+app.js
+13. Current Known Constraints
+
+Direct LinkedIn post search by topic can still fail if LinkedIn product/API access is restricted, even when OAuth scopes are present.
+Commenting works when post target is valid and accessible by the connected member token.
+Redirect URI mismatch in LinkedIn OAuth blocks connect until exact URI parity is fixed.
+14. Testing Status (as executed during development)
+
+Engagement service tests passing:
+test_engagement_service.py
+Content image endpoint tests passing:
+test_content_generated_images_api.py
+test_content_generate_topic_images_api.py
+Health test passing:
+test_health.py

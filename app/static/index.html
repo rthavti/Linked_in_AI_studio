@@ -21,6 +21,7 @@
         <button type="button" data-section="history">📜 History</button>
         <button type="button" data-section="schedule">📅 Scheduler</button>
         <button type="button" data-section="campaigns">🎓 Campaigns</button>
+        <button type="button" data-section="engagement">💬 Engagement</button>
         <button type="button" data-section="settings">⚙ Settings</button>
       </nav>
     </aside>
@@ -314,8 +315,16 @@
 
     <section id="generate" class="panel">
       <h2>Generate Content</h2>
-      <p>Trigger a LinkedIn post generation from the next pending topic.</p>
-      <p id="generate-target-info" class="helper-text">Target: Next pending topic (oldest NEW).</p>
+      <p>Select a pending topic and generate a LinkedIn post draft on demand.</p>
+      <p id="generate-target-info" class="helper-text">Target: Select a pending topic from dropdown.</p>
+      <div class="generate-options">
+        <label>
+          Pending topic
+          <select id="generate-pending-topic-select">
+            <option value="">Select pending topic...</option>
+          </select>
+        </label>
+      </div>
       <div class="generate-options">
         <label>
           <input id="generate-images-toggle" type="checkbox" /> Generate image
@@ -327,6 +336,27 @@
             <option value="2">2 images</option>
           </select>
         </label>
+        <label>
+          Visual template
+          <select id="generate-visual-template">
+            <option value="auto" selected>Auto (topic based)</option>
+            <option value="matrix_2x2">2x2 Matrix</option>
+            <option value="tool_comparison">Tool Comparison</option>
+            <option value="flow_diagram">Flow Diagram</option>
+            <option value="architecture_diagram">Architecture Diagram</option>
+            <option value="timeline">Timeline</option>
+            <option value="checklist">Checklist</option>
+          </select>
+        </label>
+        <label>
+          Image size
+          <select id="generate-image-size">
+            <option value="1536x1024" selected>Landscape (1536x1024)</option>
+            <option value="1024x1024">Square (1024x1024)</option>
+            <option value="1024x1536">Portrait (1024x1536)</option>
+          </select>
+        </label>
+        <input id="generate-image-style-hint" type="text" placeholder="Style hint (optional, e.g. cinematic blue, minimal editorial)" />
       </div>
       <button id="generate-button">Generate Now</button>
       <div id="generate-panel" class="generate-panel hidden">
@@ -338,6 +368,7 @@
           <div class="generate-actions">
             <button id="copy-button" type="button">Copy</button>
             <button id="regenerate-button" type="button">Regenerate</button>
+            <button id="generate-images-only-button" type="button">Generate Visual</button>
             <button id="enhance-button" type="button">Enhance Engagement</button>
             <button id="save-draft-button" type="button">Save Draft</button>
             <button id="approve-button" type="button">Approve from Preview</button>
@@ -434,6 +465,7 @@
           <p>Start OAuth in one click and return to this app after authorization.</p>
           <div class="connect-linkedin-actions">
             <button id="connect-linkedin-button" type="button">Connect LinkedIn</button>
+            <button id="disconnect-linkedin-button" type="button">Disconnect LinkedIn</button>
             <span id="connect-linkedin-message"></span>
             <span id="oauth-missing-hint" class="oauth-missing-hint"></span>
           </div>
@@ -512,6 +544,137 @@
         <div id="campaigns-table-container"></div>
       </section>
     </section>
+
+    <section id="engagement" class="panel">
+      <h2>AI Engagement Engine</h2>
+      <p>Filter relevant LinkedIn posts, generate technical comments, review, and post with daily guardrails.</p>
+
+      <section class="widget">
+        <h3>Engine Settings</h3>
+        <form id="engagement-settings-form" class="inline-form" action="javascript:void(0);" method="post" onsubmit="return false;">
+          <label>
+            <input id="engagement-enabled" type="checkbox" /> Enable daily engine
+          </label>
+          <label>
+            <input id="engagement-require-review" type="checkbox" checked /> Require review before posting
+          </label>
+          <label>
+            <input id="engagement-auto-post" type="checkbox" /> Auto-post comments
+          </label>
+          <label>
+            Posts to search/day
+            <input id="engagement-posts-per-day" type="number" min="1" max="200" value="30" />
+          </label>
+          <label>
+            Comments/day
+            <input id="engagement-comments-per-day" type="number" min="1" max="100" value="5" />
+          </label>
+          <label>
+            Min reactions
+            <input id="engagement-min-reactions" type="number" min="0" max="100000" value="50" />
+          </label>
+          <label>
+            Author cooldown (hours)
+            <input id="engagement-author-cooldown" type="number" min="1" max="720" value="72" />
+          </label>
+          <label>
+            Daily run time
+            <input id="engagement-run-time" type="time" value="09:30" />
+          </label>
+          <label>
+            Comment style
+            <select id="engagement-style">
+              <option value="professional" selected>Professional</option>
+              <option value="thought_leadership">Thought Leadership</option>
+              <option value="technical">Technical</option>
+              <option value="question">Question-driven</option>
+            </select>
+          </label>
+          <label>
+            Tracked topics (comma separated)
+            <input id="engagement-topics" type="text" placeholder="Functional Safety, FDE, AUTOSAR, SDV, CI/CD, DevOps" />
+          </label>
+          <label>
+            Blocked keywords (comma separated)
+            <input id="engagement-blocked-keywords" type="text" placeholder="hiring, job opening, politics, religious" />
+          </label>
+          <label>
+            Your author identifiers (comma separated)
+            <input id="engagement-own-identifiers" type="text" placeholder="your name, your company page" />
+          </label>
+          <button id="engagement-save-settings" type="button">Save Engagement Settings</button>
+        </form>
+      </section>
+
+      <section class="widget">
+        <h3>Candidate Scan</h3>
+        <p>Paste JSON array of candidate posts from your collector pipeline.</p>
+        <div class="schedule-inline-actions">
+          <input id="engagement-candidates-file" type="file" accept=".json,application/json" />
+          <button id="engagement-load-file-button" type="button">Load JSON File</button>
+        </div>
+        <textarea id="engagement-candidates-json" rows="10" placeholder='[{"post_url":"https://www.linkedin.com/feed/update/urn:li:share:...","post_urn":"urn:li:share:...","post_author":"Author Name","post_content":"Post content","post_language":"en","post_published_at":"2026-07-03T07:00:00","post_reaction_count":120,"is_company_page":false,"is_sponsored":false,"is_recruiter":false,"is_repost":false}]'></textarea>
+        <div class="schedule-inline-actions">
+          <button id="engagement-scan-button" type="button">Scan Candidates</button>
+          <button id="engagement-run-daily-button" type="button">Run Daily Scan</button>
+        </div>
+      </section>
+
+      <section class="widget">
+        <h3>Topic Configurator</h3>
+        <p>Add per-topic search and engagement behavior. The list below shows what is configured.</p>
+        <form id="engagement-topic-config-form" class="inline-form" action="javascript:void(0);" method="post" onsubmit="return false;">
+          <label>
+            Topic
+            <input id="engagement-topic-name" type="text" placeholder="functional safety" />
+          </label>
+          <label>
+            Style
+            <select id="engagement-topic-style">
+              <option value="professional" selected>Professional</option>
+              <option value="thought_leadership">Thought Leadership</option>
+              <option value="technical">Technical</option>
+              <option value="question">Question-driven</option>
+            </select>
+          </label>
+          <label>
+            Min reactions
+            <input id="engagement-topic-min-reactions" type="number" min="0" max="100000" value="50" />
+          </label>
+          <label>
+            Posts to search
+            <input id="engagement-topic-posts" type="number" min="1" max="50" value="10" />
+          </label>
+          <label>
+            Comments/run
+            <input id="engagement-topic-comments" type="number" min="1" max="20" value="2" />
+          </label>
+          <label>
+            <input id="engagement-topic-auto-post" type="checkbox" /> Auto-post
+          </label>
+          <label>
+            <input id="engagement-topic-require-review" type="checkbox" checked /> Require review
+          </label>
+          <button id="engagement-topic-add-button" type="button">Add / Update Topic</button>
+          <button id="engagement-topic-run-direct-button" type="button">Search LinkedIn + Queue Comments</button>
+        </form>
+        <p id="engagement-search-mode-indicator" class="engagement-mode-chip">Execution Mode: -</p>
+        <div id="engagement-topic-config-list"></div>
+      </section>
+
+      <div id="engagement-message" class="message"></div>
+
+      <div class="home-grid">
+        <section class="widget">
+          <h3>Review Queue</h3>
+          <div id="engagement-comments-container"></div>
+        </section>
+        <section class="widget">
+          <h3>Analytics</h3>
+          <div id="engagement-analytics-container"></div>
+        </section>
+      </div>
+    </section>
     </main>
   </div>
 
@@ -557,6 +720,6 @@
     </div>
   </aside>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=engagement-mode-1"></script>
 </body>
 </html>

@@ -94,6 +94,16 @@ class GenerationService:
         "GENERAL": ["#leadership", "#innovation", "#strategy", "#business"],
     }
 
+    VISUAL_TEMPLATE_HINTS = {
+        "auto": "Choose the strongest composition automatically based on topic context.",
+        "matrix_2x2": "Design a clean 2x2 decision matrix infographic with clear quadrants and axis labels.",
+        "tool_comparison": "Design a horizontal comparison board of tools/options with clear cards and concise labels.",
+        "flow_diagram": "Design a step-by-step flow diagram with directional connectors and concise nodes.",
+        "architecture_diagram": "Design a modern architecture diagram with layered components and relationship arrows.",
+        "timeline": "Design a timeline visual with milestones and short annotations.",
+        "checklist": "Design a checklist-style infographic with grouped items and visual hierarchy.",
+    }
+
     def __init__(self, topic_repository: TopicRepository, db_session):
         self.topic_repository = topic_repository
         self.history_repository = GenerationHistoryRepository(db_session)
@@ -147,8 +157,10 @@ class GenerationService:
         generated_post: str,
         index: int,
         image_style_hint: str | None = None,
+        visual_template: str = "auto",
     ) -> str:
         style_hint = (image_style_hint or "").strip()
+        template_hint = self.VISUAL_TEMPLATE_HINTS.get(visual_template, self.VISUAL_TEMPLATE_HINTS["auto"])
         return (
             f"Create a premium LinkedIn visual for {topic.category.value}, variation {index}. "
             "Art direction: modern B2B editorial, minimal and clean, realistic or high-end vector style, strong composition. "
@@ -158,6 +170,7 @@ class GenerationService:
             "Avoid poster-like layouts, avoid cartoonish style, avoid dense typography, avoid logos and brand names. "
             "Color palette: professional blue/neutral tones with subtle contrast accents. "
             "Output should look suitable for executive LinkedIn posts. "
+            f"Template direction: {template_hint} "
             f"Topic: {topic.topic}. Context: {generated_post[:450]}. "
             f"Style guidance: {style_hint if style_hint else 'auto-select best educational style for the topic.'}"
         )
@@ -168,6 +181,8 @@ class GenerationService:
         generated_post: str,
         image_count: int,
         image_style_hint: str | None = None,
+        visual_template: str = "auto",
+        image_size: str = "1536x1024",
     ) -> list[str]:
         generated_dir = Path(__file__).resolve().parent.parent / "static" / "generated"
         generated_dir.mkdir(parents=True, exist_ok=True)
@@ -179,8 +194,9 @@ class GenerationService:
                 generated_post,
                 idx,
                 image_style_hint=image_style_hint,
+                visual_template=visual_template,
             )
-            image_bytes = self.ai_client.generate_image(prompt)
+            image_bytes = self.ai_client.generate_image(prompt, size=image_size)
             filename = (
                 f"topic-{topic.id}-{self._slugify(topic.category.value)}-"
                 f"{self._slugify(topic.topic)}-{idx}-{uuid.uuid4().hex[:8]}.png"
@@ -339,6 +355,8 @@ class GenerationService:
         generate_images: bool = False,
         image_count: int = 1,
         image_style_hint: str | None = None,
+        visual_template: str = "auto",
+        image_size: str = "1536x1024",
         prompt_override: str | None = None,
         min_words: int | None = None,
         max_words: int | None = None,
@@ -420,6 +438,8 @@ class GenerationService:
                             generated_post,
                             count,
                             image_style_hint=image_style_hint,
+                            visual_template=visual_template,
+                            image_size=image_size,
                         )
                         if image_urls:
                             publish_service = PublishService(self.db)
@@ -463,6 +483,39 @@ class GenerationService:
                     return False
 
         return False
+
+    def generate_images_for_topic(
+        self,
+        topic,
+        image_count: int = 1,
+        image_style_hint: str | None = None,
+        visual_template: str = "auto",
+        image_size: str = "1536x1024",
+    ) -> list[str]:
+        context = (topic.generated_post or topic.topic or "").strip()
+        if not context:
+            raise ValueError("Topic content is empty; cannot generate image.")
+
+        count = max(1, min(2, int(image_count)))
+        image_urls = self._save_images(
+            topic,
+            context,
+            count,
+            image_style_hint=image_style_hint,
+            visual_template=visual_template,
+            image_size=image_size,
+        )
+
+        if image_urls:
+            publish_service = PublishService(self.db)
+            for image_url in image_urls:
+                publish_service.attach_media_to_topic(
+                    topic.id,
+                    image_url,
+                    mime_type="image/png",
+                )
+
+        return image_urls
 
     @staticmethod
     def _extract_json_payload(raw_text: str) -> dict:

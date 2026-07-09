@@ -230,6 +230,9 @@ def regenerate_topic(
         prompt_version=payload.prompt_version,
         generate_images=payload.generate_images,
         image_count=payload.image_count,
+        image_style_hint=payload.image_style_hint,
+        visual_template=payload.visual_template,
+        image_size=payload.image_size,
     ):
         raise HTTPException(status_code=500, detail="Regeneration failed.")
 

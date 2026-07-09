@@ -8,6 +8,8 @@ from app.db.models.oauth_state import OAuthState
 from app.db.models.publish_queue import PublishQueue
 from app.db.models.learning_campaign import LearningCampaign
 from app.db.models.learning_campaign_item import LearningCampaignItem
+from app.db.models.engagement_setting import EngagementSetting
+from app.db.models.engagement_comment_history import EngagementCommentHistory
 
 __all__ = [
     "GenerationHistory",
@@ -20,4 +22,6 @@ __all__ = [
     "PublishQueue",
     "LearningCampaign",
     "LearningCampaignItem",
+    "EngagementSetting",
+    "EngagementCommentHistory",
 ]
