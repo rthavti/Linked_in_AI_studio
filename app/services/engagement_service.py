@@ -56,8 +56,8 @@ DEFAULT_TOPIC_CONFIG = {
     "min_reactions": 50,
     "posts_to_search": 10,
     "comments_per_run": 2,
-    "auto_post_enabled": False,
-    "require_review": True,
+    "auto_post_enabled": True,
+    "require_review": False,
 }
 
 
@@ -187,8 +187,8 @@ class EngagementService:
 
         settings = EngagementSetting(
             enabled=False,
-            require_review=True,
-            auto_post_enabled=False,
+            require_review=False,
+            auto_post_enabled=True,
             posts_to_search_per_day=30,
             comments_per_day=5,
             min_reactions=50,
@@ -386,9 +386,12 @@ class EngagementService:
     def _post_urn_from_url(url: str) -> str | None:
         if not url:
             return None
-        match = re.search(r"urn:li:(share|ugcPost):[0-9]+", url)
+        match = re.search(r"urn:li:(activity|share|ugcPost):[0-9]+", url)
         if match:
             return match.group(0)
+        activity_slug = re.search(r"activity-([0-9]{10,})", url)
+        if activity_slug:
+            return f"urn:li:activity:{activity_slug.group(1)}"
         trailing = re.search(r"([0-9]{10,})/?$", url)
         if trailing:
             return f"urn:li:share:{trailing.group(1)}"
@@ -409,6 +412,13 @@ class EngagementService:
                 if not self.linkedin_client.is_post_accessible(access_token, resolved_urn):
                     return False, "Invalid or inaccessible post URL/URN.", resolved_urn
             except Exception as exc:
+                # Some apps can post comments but cannot read social action metadata (403).
+                if "403" in str(exc):
+                    logger.warning(
+                        "LinkedIn accessibility precheck returned 403 for %s; continuing to direct post attempt.",
+                        resolved_urn,
+                    )
+                    return True, "", resolved_urn
                 return False, f"Unable to validate post accessibility: {exc}", resolved_urn
 
         return True, "", resolved_urn
@@ -430,6 +440,15 @@ class EngagementService:
             author_urn=author_urn,
             comment_text=comment_text,
         )
+
+        try:
+            self.linkedin_client.like_post(
+                access_token=access_token,
+                post_urn=post_urn,
+                author_urn=author_urn,
+            )
+        except Exception as exc:
+            logger.warning("Auto-like failed for %s after comment post: %s", post_urn, exc)
 
         history.post_urn = post_urn
         history.posted_comment = comment_text
@@ -641,6 +660,7 @@ class EngagementService:
         posted = 0
         skipped = 0
         searched_by_topic: dict[str, int] = {}
+        post_links: list[dict[str, str]] = []
 
         posted_today = self.repo.count_posted_today()
         daily_budget = max(0, int(settings.comments_per_day) - int(posted_today))
@@ -651,7 +671,11 @@ class EngagementService:
 
             topic = config["topic"]
             search_limit = min(int(config["posts_to_search"]), int(settings.posts_to_search_per_day))
-            rows = self.linkedin_client.search_posts_by_topic(access_token, topic, search_limit)
+            try:
+                rows = self.linkedin_client.search_posts_by_topic(access_token, topic, search_limit)
+            except ValueError as exc:
+                logger.warning("LinkedIn topic search unavailable for %s: %s", topic, exc)
+                rows = []
             searched_by_topic[topic] = len(rows)
 
             topic_budget = min(int(config["comments_per_run"]), daily_budget)
@@ -716,6 +740,18 @@ class EngagementService:
                     forced_topics=[topic],
                 )
 
+                if should_skip and reason == "No relevant tracked topic.":
+                    should_skip = False
+                    reason = ""
+                    selected_topic = topic
+                    relevance_score = max(int(relevance_score or 0), 1)
+
+                if should_skip and reason == "Reactions below threshold." and bool(config["auto_post_enabled"]) and not bool(config["require_review"]):
+                    should_skip = False
+                    reason = ""
+                    selected_topic = selected_topic or topic
+                    relevance_score = max(int(relevance_score or 0), 1)
+
                 history = EngagementCommentHistory(
                     post_url=candidate.post_url,
                     post_urn=candidate.post_urn,
@@ -750,6 +786,12 @@ class EngagementService:
                     if post_now:
                         created = self.repo.create_history(history)
                         self.post_comment(created, generated)
+                        post_links.append({
+                            "label": f"{topic} · {candidate.post_author or 'LinkedIn post'}",
+                            "url": candidate.post_url,
+                            "topic": topic,
+                            "status": "POSTED",
+                        })
                         posted += 1
                     else:
                         created = self.repo.create_history(history)
@@ -774,6 +816,7 @@ class EngagementService:
             "posted": posted,
             "skipped": skipped,
             "searched_by_topic": searched_by_topic,
+            "post_links": post_links,
         }
 
     def list_comments(self, status: str | None = None, limit: int = 100) -> list[EngagementCommentHistory]:

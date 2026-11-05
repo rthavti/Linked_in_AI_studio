@@ -550,35 +550,23 @@
       <p>Filter relevant LinkedIn posts, generate technical comments, review, and post with daily guardrails.</p>
 
       <section class="widget">
-        <h3>Engine Settings</h3>
-        <form id="engagement-settings-form" class="inline-form" action="javascript:void(0);" method="post" onsubmit="return false;">
+        <h3>Topic Scan Settings</h3>
+        <p>Add comma-separated topics. The engine will scan them automatically twice a day using the same limits.</p>
+        <form id="engagement-topic-config-form" class="inline-form" action="javascript:void(0);" method="post" onsubmit="return false;">
           <label>
-            <input id="engagement-enabled" type="checkbox" /> Enable daily engine
+            Topics
+            <input id="engagement-topics" type="text" placeholder="RAG, functional safety, AUTOSAR" />
           </label>
           <label>
-            <input id="engagement-require-review" type="checkbox" checked /> Require review before posting
+            Posts to scan per run
+            <input id="engagement-posts-per-day" type="number" min="1" max="200" value="10" />
           </label>
           <label>
-            <input id="engagement-auto-post" type="checkbox" /> Auto-post comments
+            Comments to post per day
+            <input id="engagement-comments-per-day" type="number" min="1" max="100" value="10" />
           </label>
           <label>
-            Posts to search/day
-            <input id="engagement-posts-per-day" type="number" min="1" max="200" value="30" />
-          </label>
-          <label>
-            Comments/day
-            <input id="engagement-comments-per-day" type="number" min="1" max="100" value="5" />
-          </label>
-          <label>
-            Min reactions
-            <input id="engagement-min-reactions" type="number" min="0" max="100000" value="50" />
-          </label>
-          <label>
-            Author cooldown (hours)
-            <input id="engagement-author-cooldown" type="number" min="1" max="720" value="72" />
-          </label>
-          <label>
-            Daily run time
+            First scan time
             <input id="engagement-run-time" type="time" value="09:30" />
           </label>
           <label>
@@ -591,24 +579,36 @@
             </select>
           </label>
           <label>
-            Tracked topics (comma separated)
-            <input id="engagement-topics" type="text" placeholder="Functional Safety, FDE, AUTOSAR, SDV, CI/CD, DevOps" />
+            Minimum reactions
+            <input id="engagement-min-reactions" type="number" min="0" max="100000" value="50" />
           </label>
           <label>
-            Blocked keywords (comma separated)
+            Blocked keywords
             <input id="engagement-blocked-keywords" type="text" placeholder="hiring, job opening, politics, religious" />
           </label>
           <label>
-            Your author identifiers (comma separated)
+            Your author identifiers
             <input id="engagement-own-identifiers" type="text" placeholder="your name, your company page" />
           </label>
-          <button id="engagement-save-settings" type="button">Save Engagement Settings</button>
+          <label>
+            <input id="engagement-auto-post" type="checkbox" checked /> Auto-post comments
+          </label>
+          <label>
+            <input id="engagement-require-review" type="checkbox" /> Require review before posting
+          </label>
+            <div class="schedule-inline-actions">
+              <button id="engagement-topic-run-direct-button" type="button">Run Now</button>
+              <span class="muted-copy">Instant topic scan, separate from the scheduled runs.</span>
+            </div>
+          <button id="engagement-save-settings" type="button">Save Topics & Scan Limits</button>
         </form>
+        <p id="engagement-search-mode-indicator" class="engagement-mode-chip">Execution Mode: Automatic twice daily</p>
+        <div id="engagement-topic-config-list"></div>
       </section>
 
       <section class="widget">
-        <h3>Candidate Scan</h3>
-        <p>Paste JSON array of candidate posts from your collector pipeline.</p>
+        <h3>Advanced Candidate Scan</h3>
+        <p>Paste JSON candidate posts if you want to test a manual batch instead of the scheduled topic scan.</p>
         <div class="schedule-inline-actions">
           <input id="engagement-candidates-file" type="file" accept=".json,application/json" />
           <button id="engagement-load-file-button" type="button">Load JSON File</button>
@@ -620,49 +620,8 @@
         </div>
       </section>
 
-      <section class="widget">
-        <h3>Topic Configurator</h3>
-        <p>Add per-topic search and engagement behavior. The list below shows what is configured.</p>
-        <form id="engagement-topic-config-form" class="inline-form" action="javascript:void(0);" method="post" onsubmit="return false;">
-          <label>
-            Topic
-            <input id="engagement-topic-name" type="text" placeholder="functional safety" />
-          </label>
-          <label>
-            Style
-            <select id="engagement-topic-style">
-              <option value="professional" selected>Professional</option>
-              <option value="thought_leadership">Thought Leadership</option>
-              <option value="technical">Technical</option>
-              <option value="question">Question-driven</option>
-            </select>
-          </label>
-          <label>
-            Min reactions
-            <input id="engagement-topic-min-reactions" type="number" min="0" max="100000" value="50" />
-          </label>
-          <label>
-            Posts to search
-            <input id="engagement-topic-posts" type="number" min="1" max="50" value="10" />
-          </label>
-          <label>
-            Comments/run
-            <input id="engagement-topic-comments" type="number" min="1" max="20" value="2" />
-          </label>
-          <label>
-            <input id="engagement-topic-auto-post" type="checkbox" /> Auto-post
-          </label>
-          <label>
-            <input id="engagement-topic-require-review" type="checkbox" checked /> Require review
-          </label>
-          <button id="engagement-topic-add-button" type="button">Add / Update Topic</button>
-          <button id="engagement-topic-run-direct-button" type="button">Search LinkedIn + Queue Comments</button>
-        </form>
-        <p id="engagement-search-mode-indicator" class="engagement-mode-chip">Execution Mode: -</p>
-        <div id="engagement-topic-config-list"></div>
-      </section>
-
       <div id="engagement-message" class="message"></div>
+      <div id="engagement-result-links" class="engagement-result-links"></div>
 
       <div class="home-grid">
         <section class="widget">

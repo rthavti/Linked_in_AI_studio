@@ -493,6 +493,18 @@ class LearningCampaignService:
         publish_event("campaign.updated", {"campaign_id": updated.id, "status": updated.status})
         return updated
 
+    def delete_campaign(self, campaign_id: int) -> None:
+        campaign = self.repo.get_campaign(campaign_id)
+        if campaign is None:
+            raise ValueError("Campaign not found.")
+
+        published_count = self.repo.count_published_items(campaign_id)
+        if published_count > 0:
+            raise ValueError("Only planned campaigns can be deleted. Campaign already has published items.")
+
+        self.repo.delete_campaign(campaign)
+        publish_event("campaign.deleted", {"campaign_id": campaign_id})
+
     def _build_topic_title(self, item: LearningCampaignItem, campaign: LearningCampaign) -> str:
         base = item.topic.strip()
         return f"{base}"
@@ -579,10 +591,7 @@ class LearningCampaignService:
             item.last_error = str(exc)
             if item.attempts >= campaign.max_attempts:
                 item.status = "FAILED"
-                campaign.status = "PAUSED"
-                campaign.last_error = (
-                    f"Campaign paused after failure on Day {item.day_number}: {str(exc)}"
-                )
+                campaign.last_error = f"Day {item.day_number} failed after {item.attempts} attempts: {str(exc)}"
                 self.repo.update_campaign(campaign)
             else:
                 item.status = "RETRY"
@@ -603,9 +612,16 @@ class LearningCampaignService:
 
     def process_due_items(self, limit: int = 5) -> int:
         now = datetime.utcnow()
-        due_items = self.repo.get_due_items(now, limit=limit)
+        # Pull a larger candidate window so blocked rows from one campaign
+        # do not starve other campaigns when the oldest due items are not runnable.
+        candidate_limit = max(limit * 20, 100)
+        due_items = self.repo.get_due_items(now, limit=candidate_limit)
         processed = 0
         for item in due_items:
+            if processed >= limit:
+                break
+            if self.repo.has_unpublished_previous(item.campaign_id, item.day_number):
+                continue
             before = item.status
             self._process_item(item)
             if before != "PUBLISHED" and item.status in {"PUBLISHED", "FAILED", "RETRY", "GENERATED"}:

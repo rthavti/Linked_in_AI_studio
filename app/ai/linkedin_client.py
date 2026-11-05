@@ -1,5 +1,7 @@
 import httpx
+import re
 import urllib.parse
+import xml.etree.ElementTree as ET
 
 from app.config.settings import settings
 
@@ -14,6 +16,8 @@ class LinkedInClient:
     SOCIAL_ACTIONS_URL = "https://api.linkedin.com/v2/socialActions"
     SEARCH_URL = "https://api.linkedin.com/v2/search"
     REST_POSTS_URL = "https://api.linkedin.com/rest/posts"
+    BING_RSS_URL = "https://www.bing.com/search"
+    DDG_HTML_URL = "https://r.jina.ai/http://html.duckduckgo.com/html/"
 
     def __init__(self):
         self.client_id = settings.LINKEDIN_CLIENT_ID
@@ -203,6 +207,26 @@ class LinkedInClient:
         resp.raise_for_status()
         return resp.json() if resp.text else {"status": resp.status_code}
 
+    def like_post(
+        self,
+        access_token: str,
+        post_urn: str,
+        author_urn: str,
+    ) -> dict:
+        encoded_urn = urllib.parse.quote(post_urn, safe="")
+        url = f"{self.SOCIAL_ACTIONS_URL}/{encoded_urn}/likes"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+            "X-Restli-Protocol-Version": "2.0.0",
+        }
+        body = {
+            "actor": author_urn,
+        }
+        resp = httpx.post(url, json=body, headers=headers, timeout=30)
+        resp.raise_for_status()
+        return resp.json() if resp.text else {"status": resp.status_code}
+
     def is_post_accessible(self, access_token: str, post_urn: str) -> bool:
         encoded_urn = urllib.parse.quote(post_urn, safe="")
         url = f"{self.SOCIAL_ACTIONS_URL}/{encoded_urn}"
@@ -261,6 +285,154 @@ class LinkedInClient:
 
         return rows
 
+    @staticmethod
+    def _extract_urn_from_url(url: str) -> str | None:
+        if not url:
+            return None
+
+        direct = urllib.parse.unquote(url)
+        for pattern in [
+            r"urn:li:(activity|share|ugcPost):[0-9]+",
+            r"activity-([0-9]{10,})",
+            r"/posts/.*?-([0-9]{10,})(?:-|/|$)",
+        ]:
+            match = re.search(pattern, direct)
+            if not match:
+                continue
+            if pattern.startswith("urn:"):
+                return match.group(0)
+            return f"urn:li:activity:{match.group(1)}"
+        return None
+
+    @staticmethod
+    def _extract_linkedin_urls_from_ddg_html(html: str, count: int) -> list[str]:
+        if not html:
+            return []
+
+        candidates: list[str] = []
+
+        # DuckDuckGo often wraps target URLs as uddg=<encoded_url>.
+        for encoded in re.findall(r"uddg=([^&\"']+)", html):
+            try:
+                url = urllib.parse.unquote(encoded)
+            except Exception:
+                continue
+            if "linkedin.com" not in url.lower():
+                continue
+            if "/feed/update/" not in url and "/posts/" not in url:
+                continue
+            candidates.append(url)
+            if len(candidates) >= count:
+                break
+
+        # Fallback direct URL extraction.
+        if len(candidates) < count:
+            for url in re.findall(r"https?://[^\"'\s<>]+linkedin\.com[^\"'\s<>]+", html):
+                parsed = urllib.parse.unquote(url)
+                if "/feed/update/" not in parsed and "/posts/" not in parsed:
+                    continue
+                if parsed not in candidates:
+                    candidates.append(parsed)
+                if len(candidates) >= count:
+                    break
+
+        return candidates[:count]
+
+    def _search_public_linkedin_posts_by_topic(self, topic: str, count: int) -> list[dict]:
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+        }
+
+        rows: list[dict] = []
+        seen_urls: set[str] = set()
+
+        query_variants = [
+            f'site:linkedin.com/posts {topic}',
+            f'site:linkedin.com/posts "{topic}"',
+            f'site:linkedin.com/feed/update {topic}',
+            f'site:linkedin.com/feed/update "{topic}"',
+        ]
+
+        def add_link(link: str) -> None:
+            if link in seen_urls:
+                return
+            seen_urls.add(link)
+            rows.append(
+                {
+                    "post_url": link,
+                    "post_urn": self._extract_urn_from_url(link),
+                    "post_author": "",
+                    "post_content": f"{topic} discussion",
+                    "post_language": "en",
+                    "post_reaction_count": 0,
+                    "is_company_page": False,
+                    "is_sponsored": False,
+                    "is_recruiter": False,
+                    "is_repost": False,
+                }
+            )
+
+        for query in query_variants:
+            ddg_resp = httpx.get(
+                self.DDG_HTML_URL,
+                params={"q": query},
+                headers=headers,
+                timeout=30,
+                follow_redirects=True,
+            )
+            ddg_resp.raise_for_status()
+            ddg_urls = self._extract_linkedin_urls_from_ddg_html(ddg_resp.text, count)
+            for link in ddg_urls:
+                add_link(link)
+                if len(rows) >= count:
+                    return rows[:count]
+
+        # Secondary fallback: Bing RSS extraction.
+        params = {
+            "q": f'site:linkedin.com {topic}',
+            "format": "rss",
+        }
+        resp = httpx.get(
+            self.BING_RSS_URL,
+            params=params,
+            headers=headers,
+            timeout=30,
+            follow_redirects=True,
+        )
+        resp.raise_for_status()
+
+        root = ET.fromstring(resp.text)
+        for item in root.findall("./channel/item"):
+            link = (item.findtext("link") or "").strip()
+            title = (item.findtext("title") or "").strip()
+            description = (item.findtext("description") or "").strip()
+            if not link or "linkedin.com" not in link.lower():
+                continue
+            if "/feed/update/" not in link and "/posts/" not in link:
+                continue
+
+            post_content = " ".join([part for part in [title, description] if part]).strip() or f"{topic} discussion"
+            if link not in seen_urls:
+                seen_urls.add(link)
+                rows.append(
+                    {
+                        "post_url": link,
+                        "post_urn": self._extract_urn_from_url(link),
+                        "post_author": "",
+                        "post_content": post_content,
+                        "post_language": "en",
+                        "post_reaction_count": 0,
+                        "is_company_page": False,
+                        "is_sponsored": False,
+                        "is_recruiter": False,
+                        "is_repost": False,
+                    }
+                )
+            if len(rows) >= count:
+                break
+
+        return rows[:count]
+
     def search_posts_by_topic(self, access_token: str, topic: str, count: int = 10) -> list[dict]:
         headers = {
             "Authorization": f"Bearer {access_token}",
@@ -295,6 +467,14 @@ class LinkedInClient:
         if rest_resp.status_code < 400:
             rows = self._parse_search_post_elements(rest_resp.json())
             return rows[:safe_count]
+
+        # Last-resort fallback when LinkedIn app-level search APIs are unavailable.
+        try:
+            public_rows = self._search_public_linkedin_posts_by_topic(topic, safe_count)
+            if public_rows:
+                return public_rows[:safe_count]
+        except Exception:
+            pass
 
         detail = "LinkedIn direct post search is not available for current app scopes or API product access."
         if resp.status_code >= 400:

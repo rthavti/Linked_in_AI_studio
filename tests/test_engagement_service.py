@@ -20,6 +20,9 @@ class FakeAIClient:
 
 
 class FakeLinkedInClient:
+    def __init__(self):
+        self.like_calls = 0
+
     def refresh_access_token(self, refresh_token: str) -> dict:
         return {
             "access_token": "new-token",
@@ -30,8 +33,40 @@ class FakeLinkedInClient:
     def comment_on_post(self, access_token: str, post_urn: str, author_urn: str, comment_text: str) -> dict:
         return {"id": "comment-1"}
 
+    def like_post(self, access_token: str, post_urn: str, author_urn: str) -> dict:
+        self.like_calls += 1
+        return {"status": 201}
+
     def is_post_accessible(self, access_token: str, post_urn: str) -> bool:
         return True
+
+
+class FakeLinkedInClient403Precheck(FakeLinkedInClient):
+    def is_post_accessible(self, access_token: str, post_urn: str) -> bool:
+        raise ValueError("LinkedIn accessibility check failed with 403.")
+
+
+class FakeLinkedInClientSearchFailure(FakeLinkedInClient):
+    def search_posts_by_topic(self, access_token: str, topic: str, count: int = 10) -> list[dict]:
+        raise ValueError("LinkedIn search API error 404. REST posts search error 404.")
+
+
+class FakeLinkedInClientSearchSuccess(FakeLinkedInClient):
+    def search_posts_by_topic(self, access_token: str, topic: str, count: int = 10) -> list[dict]:
+        return [
+            {
+                "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7480506493751128064/",
+                "post_urn": "urn:li:activity:7480506493751128064",
+                "post_author": "AUTOSAR Engineer",
+                "post_content": "A practical update from an embedded software team.",
+                "post_language": "en",
+                "post_reaction_count": 12,
+                "is_company_page": False,
+                "is_sponsored": False,
+                "is_recruiter": False,
+                "is_repost": False,
+            }
+        ][:count]
 
 
 def create_session():
@@ -98,7 +133,8 @@ def test_approve_comment_posts_to_linkedin_when_requested():
     settings.LINKEDIN_TOKEN_SECRET = "test-token-secret"
 
     session = create_session()
-    service = EngagementService(session, ai_client=FakeAIClient(), linkedin_client=FakeLinkedInClient())
+    linkedin_client = FakeLinkedInClient()
+    service = EngagementService(session, ai_client=FakeAIClient(), linkedin_client=linkedin_client)
 
     account_repo = LinkedInAccountRepository(session)
     account_repo.create_or_update(
@@ -129,6 +165,7 @@ def test_approve_comment_posts_to_linkedin_when_requested():
     assert updated.status == "POSTED"
     assert updated.linkedin_comment_id == "comment-1"
     assert updated.posted_at is not None
+    assert linkedin_client.like_calls == 1
 
 
 def test_scan_candidates_skips_invalid_post_url_or_urn():
@@ -161,3 +198,122 @@ def test_scan_candidates_skips_invalid_post_url_or_urn():
     assert len(comments) == 1
     assert comments[0].status == "SKIPPED"
     assert comments[0].skip_reason == "Invalid or missing LinkedIn post URL/URN."
+
+
+def test_scan_candidates_does_not_skip_when_accessibility_precheck_is_403():
+    session = create_session()
+    service = EngagementService(session, ai_client=FakeAIClient(), linkedin_client=FakeLinkedInClient403Precheck())
+
+    payload = Payload(
+        candidates=[
+            Candidate(
+                post_url="https://www.linkedin.com/feed/update/urn:li:activity:7481557890386784256/",
+                post_urn=None,
+                post_author="AI Engineering Leader",
+                post_content="AI model reliability and production safety controls in deployment pipelines.",
+                post_published_at=datetime.utcnow() - timedelta(hours=1),
+                post_reaction_count=180,
+                post_language="en",
+            )
+        ],
+        style="professional",
+        auto_post=False,
+    )
+
+    result = service.scan_candidates(payload)
+
+    assert result["searched"] == 1
+    assert result["relevant"] == 1
+    assert result["queued_for_review"] == 1
+    assert result["skipped"] == 0
+    comments = service.list_comments()
+    assert len(comments) == 1
+    assert comments[0].status == "REVIEW_PENDING"
+    assert comments[0].generated_comment is not None
+
+
+def test_post_urn_extraction_preserves_activity_urn():
+    url = "https://www.linkedin.com/feed/update/urn:li:activity:7481557890386784256/"
+    assert EngagementService._post_urn_from_url(url) == "urn:li:activity:7481557890386784256"
+
+
+def test_post_urn_extraction_from_activity_slug_url():
+    url = "https://www.linkedin.com/posts/some-user_some-topic-activity-7481557890386784256-abcdef"
+    assert EngagementService._post_urn_from_url(url) == "urn:li:activity:7481557890386784256"
+
+
+def test_new_settings_defaults_to_auto_post_without_review():
+    session = create_session()
+    service = EngagementService(session, ai_client=FakeAIClient(), linkedin_client=FakeLinkedInClient())
+
+    settings_obj = service.get_or_create_settings()
+
+    assert settings_obj.auto_post_enabled is True
+    assert settings_obj.require_review is False
+
+
+def test_scan_direct_from_linkedin_continues_when_search_is_unavailable():
+    settings.LINKEDIN_TOKEN_SECRET = "test-token-secret"
+
+    session = create_session()
+    service = EngagementService(session, ai_client=FakeAIClient(), linkedin_client=FakeLinkedInClientSearchFailure())
+
+    account_repo = LinkedInAccountRepository(session)
+    account_repo.create_or_update(
+        provider_user_id="mock-user-id",
+        access_token=TokenService.encrypt("access-token"),
+        refresh_token=TokenService.encrypt("refresh-token"),
+        expires_at=datetime.utcnow() + timedelta(hours=1),
+    )
+
+    result = service.scan_direct_from_linkedin([{"topic": "RAG", "style": "technical", "posts_to_search": 3, "comments_per_run": 3, "auto_post_enabled": True, "require_review": False}])
+
+    assert result["searched"] == 0
+    assert result["relevant"] == 0
+    assert result["queued_for_review"] == 0
+    assert result["posted"] == 0
+    assert result["skipped"] == 0
+    assert result["searched_by_topic"] == {"RAG": 0}
+
+
+def test_scan_direct_from_linkedin_auto_posts_search_results_even_without_topic_keyword():
+    settings.LINKEDIN_TOKEN_SECRET = "test-token-secret"
+
+    session = create_session()
+    linkedin_client = FakeLinkedInClientSearchSuccess()
+    service = EngagementService(session, ai_client=FakeAIClient(), linkedin_client=linkedin_client)
+
+    account_repo = LinkedInAccountRepository(session)
+    account_repo.create_or_update(
+        provider_user_id="mock-user-id",
+        access_token=TokenService.encrypt("access-token"),
+        refresh_token=TokenService.encrypt("refresh-token"),
+        expires_at=datetime.utcnow() + timedelta(hours=1),
+    )
+
+    result = service.scan_direct_from_linkedin([
+        {
+            "topic": "AUTOSAR",
+            "style": "technical",
+            "min_reactions": 0,
+            "posts_to_search": 3,
+            "comments_per_run": 3,
+            "auto_post_enabled": True,
+            "require_review": False,
+        }
+    ])
+
+    assert result["searched"] == 1
+    assert result["relevant"] == 1
+    assert result["posted"] == 1
+    assert result["post_links"] == [
+        {
+            "label": "AUTOSAR · AUTOSAR Engineer",
+            "url": "https://www.linkedin.com/feed/update/urn:li:activity:7480506493751128064/",
+            "topic": "AUTOSAR",
+            "status": "POSTED",
+        }
+    ]
+    comments = service.list_comments()
+    assert len(comments) == 1
+    assert comments[0].status == "AUTO_POSTED"

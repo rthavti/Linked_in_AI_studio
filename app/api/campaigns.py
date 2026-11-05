@@ -123,3 +123,15 @@ def resume_campaign(campaign_id: int, db: Session = Depends(get_db)):
         "message": "Campaign activated.",
         "campaign": campaign,
     }
+
+
+@router.delete("/{campaign_id}")
+def delete_campaign(campaign_id: int, db: Session = Depends(get_db)):
+    service = LearningCampaignService(db)
+    try:
+        service.delete_campaign(campaign_id)
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = 404 if "not found" in detail.lower() else 400
+        raise HTTPException(status_code=status_code, detail=detail)
+    return {"success": True, "message": "Campaign deleted."}

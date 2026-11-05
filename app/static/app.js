@@ -145,6 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const engagementCommentsContainer = document.getElementById('engagement-comments-container');
   const engagementAnalyticsContainer = document.getElementById('engagement-analytics-container');
   const engagementMessage = document.getElementById('engagement-message');
+  const engagementResultLinks = document.getElementById('engagement-result-links');
   const topicDrawer = document.getElementById('topic-drawer');
   const drawerBackdrop = document.getElementById('drawer-backdrop');
   const drawerClose = document.getElementById('drawer-close');
@@ -209,6 +210,25 @@ TIMEZONE=Asia/Kolkata`;
       }
       return data;
     });
+  }
+
+  function renderEngagementResultLinks(links) {
+    if (!engagementResultLinks) {
+      return;
+    }
+
+    const items = Array.isArray(links) ? links : [];
+    if (!items.length) {
+      engagementResultLinks.innerHTML = '';
+      return;
+    }
+
+    engagementResultLinks.innerHTML = items.map((item) => {
+      const label = escapeHtml(item.label || item.topic || 'LinkedIn post');
+      const url = escapeHtml(item.url || '#');
+      const shortUrl = escapeHtml(shortenUrl(item.url || ''));
+      return `<a class="engagement-result-link" href="${url}" target="_blank" rel="noreferrer noopener"><span class="engagement-result-link-label">${label}</span><span class="engagement-result-link-url">${shortUrl}</span></a>`;
+    }).join('');
   }
 
   const api = {
@@ -285,6 +305,9 @@ TIMEZONE=Asia/Kolkata`;
     }).then(checkStatus),
     resumeCampaign: (id) => fetchWithTimeout(`/campaigns/${id}/resume`, {
       method: 'POST',
+    }).then(checkStatus),
+    deleteCampaign: (id) => fetchWithTimeout(`/campaigns/${id}`, {
+      method: 'DELETE',
     }).then(checkStatus),
     getEngagementSettings: () => fetchWithTimeout('/engagement/settings').then(checkStatus),
     updateEngagementSettings: (payload) => fetchWithTimeout('/engagement/settings', {
@@ -1498,6 +1521,7 @@ TIMEZONE=Asia/Kolkata`;
             <th>Progress</th>
             <th>Guardrails</th>
             <th>Actions</th>
+            <th>Delete</th>
           </tr>
         </thead>
         <tbody>
@@ -1512,6 +1536,7 @@ TIMEZONE=Asia/Kolkata`;
             const imageGuardrail = campaign.auto_generate_images
               ? `${campaign.image_count} image${campaign.image_count > 1 ? 's' : ''}/post • ${styleLabel}`
               : 'images disabled';
+            const canDeletePlanned = progress.published === 0;
 
             return `
               <tr>
@@ -1528,6 +1553,16 @@ TIMEZONE=Asia/Kolkata`;
                     ${campaign.status === 'ACTIVE'
                       ? `<button type="button" data-action="pause-campaign" data-id="${campaign.id}">Pause</button>`
                       : `<button type="button" data-action="resume-campaign" data-id="${campaign.id}">Resume</button>`}
+                  </div>
+                </td>
+                <td>
+                  <div class="campaign-actions">
+                    <button
+                      type="button"
+                      data-action="delete-campaign"
+                      data-id="${campaign.id}"
+                      ${canDeletePlanned ? '' : 'disabled title="Only planned campaigns can be deleted"'}
+                    >Delete</button>
                   </div>
                 </td>
               </tr>
@@ -1569,10 +1604,12 @@ TIMEZONE=Asia/Kolkata`;
       const safeAuthor = escapeHtml(String(item.post_author || '-'));
       const safeUrl = escapeHtml(String(item.post_url || '#'));
       const safeComment = escapeHtml(String(item.posted_comment || item.generated_comment || ''));
+      const isPosted = item.status === 'POSTED' || item.status === 'AUTO_POSTED';
       return `
       <article class="engagement-comment-card">
         <p class="engagement-topic-title">${safeTopic}</p>
         <p><strong>Status:</strong> ${renderStatusChip(item.status)}</p>
+        ${isPosted ? '<p class="engagement-delivery-note"><strong>Delivery:</strong> Comment posted • Like attempted</p>' : ''}
         <p><strong>Author:</strong> ${safeAuthor}</p>
         <p><strong>Post:</strong> <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">Open</a> • Reactions ${item.post_reaction_count}</p>
         <p><strong>Generated:</strong></p>
@@ -1625,13 +1662,25 @@ TIMEZONE=Asia/Kolkata`;
     };
   }
 
+  function buildUniformEngagementTopicConfigs(topics = []) {
+    return parseCsvList(topics.join(',')).map((topic) => normalizeEngagementTopicConfig({
+      topic,
+      style: engagementStyleInput?.value || 'professional',
+      min_reactions: engagementMinReactionsInput?.value,
+      posts_to_search: engagementPostsPerDayInput?.value,
+      comments_per_run: engagementCommentsPerDayInput?.value,
+      auto_post_enabled: engagementAutoPostInput?.checked,
+      require_review: engagementRequireReviewInput?.checked,
+    }));
+  }
+
   function renderEngagementTopicConfigs(configs) {
     if (!engagementTopicConfigList) {
       return;
     }
 
     if (!Array.isArray(configs) || !configs.length) {
-      engagementTopicConfigList.innerHTML = '<p>No topic configuration yet. Add one above.</p>';
+      engagementTopicConfigList.innerHTML = '<p>No topics configured yet. Add comma-separated topics above.</p>';
       return;
     }
 
@@ -1641,28 +1690,11 @@ TIMEZONE=Asia/Kolkata`;
       return `
         <article class="topic-item">
           <p><strong>${safeTopic}</strong></p>
-          <p>Style: ${safeStyle} • Min reactions: ${Number(item.min_reactions || 0)} • Search: ${Number(item.posts_to_search || 0)} • Comments/run: ${Number(item.comments_per_run || 0)}</p>
-          <p>Auto-post: ${item.auto_post_enabled ? 'Yes' : 'No'} • Require review: ${item.require_review ? 'Yes' : 'No'}</p>
-          <div class="topic-actions">
-            <button type="button" data-action="engagement-topic-edit" data-index="${idx}">Edit</button>
-            <button type="button" data-action="engagement-topic-remove" data-index="${idx}">Remove</button>
-          </div>
+          <p>${safeStyle} • ${Number(item.posts_to_search || 0)} posts per run • ${Number(item.comments_per_run || 0)} comments per day</p>
+          <p>Auto-post: ${item.auto_post_enabled ? 'Yes' : 'No'} • Review: ${item.require_review ? 'Yes' : 'No'}</p>
         </article>
       `;
     }).join('');
-  }
-
-  function applyEngagementTopicConfigToForm(config) {
-    if (!config) {
-      return;
-    }
-    if (engagementTopicNameInput) engagementTopicNameInput.value = config.topic || '';
-    if (engagementTopicStyleInput) engagementTopicStyleInput.value = config.style || 'professional';
-    if (engagementTopicMinReactionsInput) engagementTopicMinReactionsInput.value = Number(config.min_reactions || 50);
-    if (engagementTopicPostsInput) engagementTopicPostsInput.value = Number(config.posts_to_search || 10);
-    if (engagementTopicCommentsInput) engagementTopicCommentsInput.value = Number(config.comments_per_run || 2);
-    if (engagementTopicAutoPostInput) engagementTopicAutoPostInput.checked = Boolean(config.auto_post_enabled);
-    if (engagementTopicRequireReviewInput) engagementTopicRequireReviewInput.checked = config.require_review !== false;
   }
 
   function setEngagementSearchMode(modeText) {
@@ -1689,7 +1721,9 @@ TIMEZONE=Asia/Kolkata`;
     engagementTopicsInput.value = (settings.topics || []).join(', ');
     engagementBlockedKeywordsInput.value = (settings.blocked_keywords || []).join(', ');
     engagementOwnIdentifiersInput.value = (settings.own_author_identifiers || []).join(', ');
-    currentEngagementTopicConfigs = Array.isArray(settings.topic_configs) ? settings.topic_configs.map(normalizeEngagementTopicConfig) : [];
+    currentEngagementTopicConfigs = Array.isArray(settings.topic_configs) && settings.topic_configs.length
+      ? settings.topic_configs.map(normalizeEngagementTopicConfig)
+      : buildUniformEngagementTopicConfigs(settings.topics || []);
     renderEngagementTopicConfigs(currentEngagementTopicConfigs);
   }
 
@@ -2917,6 +2951,16 @@ TIMEZONE=Asia/Kolkata`;
             campaignMessage.textContent = 'Campaign resumed.';
           }
         }
+        if (button.dataset.action === 'delete-campaign') {
+          const confirmed = window.confirm('Delete this planned campaign? This will remove all scheduled campaign items.');
+          if (!confirmed) {
+            return;
+          }
+          await api.deleteCampaign(campaignId);
+          if (campaignMessage) {
+            campaignMessage.textContent = 'Campaign deleted.';
+          }
+        }
         await loadCampaigns();
       } catch (error) {
         console.error(error);
@@ -2931,6 +2975,9 @@ TIMEZONE=Asia/Kolkata`;
     engagementSaveSettingsButton.addEventListener('click', async () => {
       try {
         engagementSaveSettingsButton.disabled = true;
+        const topics = parseCsvList(engagementTopicsInput?.value);
+        const topicConfigs = buildUniformEngagementTopicConfigs(topics);
+        currentEngagementTopicConfigs = topicConfigs;
         const payload = {
           enabled: Boolean(engagementEnabledInput?.checked),
           require_review: Boolean(engagementRequireReviewInput?.checked),
@@ -2941,15 +2988,15 @@ TIMEZONE=Asia/Kolkata`;
           author_cooldown_hours: Number(engagementAuthorCooldownInput?.value || 72),
           run_time: engagementRunTimeInput?.value || '09:30',
           style: engagementStyleInput?.value || 'professional',
-          topics: parseCsvList(engagementTopicsInput?.value),
+          topics,
           blocked_keywords: parseCsvList(engagementBlockedKeywordsInput?.value),
           own_author_identifiers: parseCsvList(engagementOwnIdentifiersInput?.value),
-          topic_configs: currentEngagementTopicConfigs,
+          topic_configs: topicConfigs,
         };
         const saved = await api.updateEngagementSettings(payload);
         applyEngagementSettings(saved);
         if (engagementMessage) {
-          engagementMessage.textContent = 'Engagement settings saved.';
+          engagementMessage.textContent = 'Topics and scan limits saved.';
         }
       } catch (error) {
         console.error(error);
@@ -2965,34 +3012,14 @@ TIMEZONE=Asia/Kolkata`;
   if (engagementTopicAddButton) {
     engagementTopicAddButton.addEventListener('click', async () => {
       try {
-        const nextConfig = normalizeEngagementTopicConfig({
-          topic: engagementTopicNameInput?.value,
-          style: engagementTopicStyleInput?.value,
-          min_reactions: engagementTopicMinReactionsInput?.value,
-          posts_to_search: engagementTopicPostsInput?.value,
-          comments_per_run: engagementTopicCommentsInput?.value,
-          auto_post_enabled: engagementTopicAutoPostInput?.checked,
-          require_review: engagementTopicRequireReviewInput?.checked,
-        });
-
-        const withoutCurrent = currentEngagementTopicConfigs.filter(
-          (item) => String(item.topic || '').toLowerCase() !== nextConfig.topic.toLowerCase(),
-        );
-        currentEngagementTopicConfigs = [...withoutCurrent, nextConfig];
-
-        if (engagementTopicsInput) {
-          engagementTopicsInput.value = currentEngagementTopicConfigs.map((item) => item.topic).join(', ');
-        }
-
+        const topics = parseCsvList(engagementTopicsInput?.value);
         const payload = {
-          topics: currentEngagementTopicConfigs.map((item) => item.topic),
-          topic_configs: currentEngagementTopicConfigs,
+          topics,
+          topic_configs: buildUniformEngagementTopicConfigs(topics),
         };
         const saved = await api.updateEngagementSettings(payload);
         applyEngagementSettings(saved);
-        if (engagementMessage) {
-          engagementMessage.textContent = `Topic configuration saved for ${nextConfig.topic}.`;
-        }
+        if (engagementMessage) engagementMessage.textContent = 'Topics refreshed.';
       } catch (error) {
         if (engagementMessage) {
           engagementMessage.textContent = error.message || 'Unable to add topic configuration.';
@@ -3005,18 +3032,21 @@ TIMEZONE=Asia/Kolkata`;
     engagementTopicRunDirectButton.addEventListener('click', async () => {
       try {
         engagementTopicRunDirectButton.disabled = true;
-        if (!currentEngagementTopicConfigs.length) {
-          throw new Error('Add at least one topic configuration first.');
+        const topics = parseCsvList(engagementTopicsInput?.value);
+        const topicConfigs = currentEngagementTopicConfigs.length ? currentEngagementTopicConfigs : buildUniformEngagementTopicConfigs(topics);
+        if (!topicConfigs.length) {
+          throw new Error('Add at least one topic first.');
         }
 
-        const result = await api.scanEngagementDirect({ topics: currentEngagementTopicConfigs });
-        setEngagementSearchMode('Direct LinkedIn Search');
+        const result = await api.scanEngagementDirect({ topics: topicConfigs });
+        setEngagementSearchMode('Automatic twice daily topic scan');
         if (engagementMessage) {
           const byTopic = Object.entries(result.searched_by_topic || {})
             .map(([topic, count]) => `${topic}: ${count}`)
             .join(' | ');
-          engagementMessage.textContent = `Direct scan complete. searched ${result.searched}, relevant ${result.relevant}, review ${result.queued_for_review}, posted ${result.posted}, skipped ${result.skipped}.${byTopic ? ` By topic: ${byTopic}` : ''}`;
+          engagementMessage.textContent = `Topic scan complete. searched ${result.searched}, relevant ${result.relevant}, review ${result.queued_for_review}, posted ${result.posted}, skipped ${result.skipped}.${byTopic ? ` By topic: ${byTopic}` : ''}`;
         }
+        renderEngagementResultLinks(result.post_links || []);
         await loadEngagementPanel();
       } catch (error) {
         console.error(error);
@@ -3025,12 +3055,14 @@ TIMEZONE=Asia/Kolkata`;
 
         if (shouldFallback) {
           try {
-            const collectorResult = await api.scanEngagementCollector({ topics: currentEngagementTopicConfigs });
+            const topicConfigs = currentEngagementTopicConfigs.length ? currentEngagementTopicConfigs : buildUniformEngagementTopicConfigs(parseCsvList(engagementTopicsInput?.value));
+            const collectorResult = await api.scanEngagementCollector({ topics: topicConfigs });
             if (collectorResult.searched > 0) {
-              setEngagementSearchMode('Collector Candidates');
+              setEngagementSearchMode('Collector candidates');
               if (engagementMessage) {
-                engagementMessage.textContent = `Direct search unavailable, collector scan complete. searched ${collectorResult.searched}, relevant ${collectorResult.relevant}, review ${collectorResult.queued_for_review}, posted ${collectorResult.posted}, skipped ${collectorResult.skipped}.`;
+                engagementMessage.textContent = `Topic search unavailable, collector scan complete. searched ${collectorResult.searched}, relevant ${collectorResult.relevant}, review ${collectorResult.queued_for_review}, posted ${collectorResult.posted}, skipped ${collectorResult.skipped}.`;
               }
+              renderEngagementResultLinks([]);
               await loadEngagementPanel();
               return;
             }
@@ -3041,16 +3073,17 @@ TIMEZONE=Asia/Kolkata`;
               throw new Error('Direct LinkedIn search is unavailable and collector has no data. Paste/load candidate JSON and click Search LinkedIn + Queue Comments again.');
             }
 
-            const fallbackStyle = currentEngagementTopicConfigs[0]?.style || engagementStyleInput?.value || 'professional';
+            const fallbackStyle = topicConfigs[0]?.style || engagementStyleInput?.value || 'professional';
             const result = await api.scanEngagementCandidates({
               candidates,
               style: fallbackStyle,
               auto_post: Boolean(engagementAutoPostInput?.checked),
             });
-            setEngagementSearchMode('Fallback JSON Candidates');
+            setEngagementSearchMode('Fallback JSON candidates');
             if (engagementMessage) {
-              engagementMessage.textContent = `Direct search unavailable, fallback scan complete. searched ${result.searched}, relevant ${result.relevant}, review ${result.queued_for_review}, posted ${result.posted}, skipped ${result.skipped}.`;
+              engagementMessage.textContent = `Topic search unavailable, fallback scan complete. searched ${result.searched}, relevant ${result.relevant}, review ${result.queued_for_review}, posted ${result.posted}, skipped ${result.skipped}.`;
             }
+            renderEngagementResultLinks([]);
             await loadEngagementPanel();
             return;
           } catch (fallbackError) {
@@ -3064,49 +3097,9 @@ TIMEZONE=Asia/Kolkata`;
         if (engagementMessage) {
           engagementMessage.textContent = message;
         }
+        renderEngagementResultLinks([]);
       } finally {
         engagementTopicRunDirectButton.disabled = false;
-      }
-    });
-  }
-
-  if (engagementTopicConfigList) {
-    engagementTopicConfigList.addEventListener('click', async (event) => {
-      const button = event.target.closest('button[data-action]');
-      if (!button) {
-        return;
-      }
-
-      const index = Number(button.dataset.index || -1);
-      if (Number.isNaN(index) || index < 0 || index >= currentEngagementTopicConfigs.length) {
-        return;
-      }
-
-      if (button.dataset.action === 'engagement-topic-edit') {
-        applyEngagementTopicConfigToForm(currentEngagementTopicConfigs[index]);
-        return;
-      }
-
-      if (button.dataset.action === 'engagement-topic-remove') {
-        const next = currentEngagementTopicConfigs.filter((_, i) => i !== index);
-        currentEngagementTopicConfigs = next;
-        if (engagementTopicsInput) {
-          engagementTopicsInput.value = next.map((item) => item.topic).join(', ');
-        }
-        try {
-          const saved = await api.updateEngagementSettings({
-            topics: next.map((item) => item.topic),
-            topic_configs: next,
-          });
-          applyEngagementSettings(saved);
-          if (engagementMessage) {
-            engagementMessage.textContent = 'Topic configuration removed.';
-          }
-        } catch (error) {
-          if (engagementMessage) {
-            engagementMessage.textContent = error.message || 'Unable to remove topic configuration.';
-          }
-        }
       }
     });
   }

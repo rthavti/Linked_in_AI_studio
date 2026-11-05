@@ -21,6 +21,10 @@ class LearningCampaignRepository:
         self._db.refresh(campaign)
         return campaign
 
+    def delete_campaign(self, campaign: LearningCampaign) -> None:
+        self._db.delete(campaign)
+        self._db.commit()
+
     def get_campaign(self, campaign_id: int) -> LearningCampaign | None:
         return self._db.query(LearningCampaign).filter(LearningCampaign.id == campaign_id).first()
 
@@ -40,6 +44,14 @@ class LearningCampaignRepository:
             .filter(LearningCampaignItem.campaign_id == campaign_id)
             .order_by(LearningCampaignItem.day_number.asc())
             .all()
+        )
+
+    def count_published_items(self, campaign_id: int) -> int:
+        return (
+            self._db.query(LearningCampaignItem)
+            .filter(LearningCampaignItem.campaign_id == campaign_id)
+            .filter(LearningCampaignItem.status == "PUBLISHED")
+            .count()
         )
 
     def get_item(self, item_id: int) -> LearningCampaignItem | None:
@@ -69,7 +81,7 @@ class LearningCampaignRepository:
             self._db.query(LearningCampaignItem)
             .filter(LearningCampaignItem.campaign_id == campaign_id)
             .filter(LearningCampaignItem.day_number < day_number)
-            .filter(LearningCampaignItem.status != "PUBLISHED")
+            .filter(LearningCampaignItem.status.in_(["PENDING", "PROCESSING", "RETRY"]))
             .first()
         )
         return previous is not None

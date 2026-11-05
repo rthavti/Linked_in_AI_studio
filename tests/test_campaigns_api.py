@@ -162,3 +162,34 @@ def test_campaign_upload_honors_day_column_order(client):
         "Middle topic - B",
         "Late topic - C",
     ]
+
+
+def test_delete_planned_campaign(client):
+    excel_bytes = _build_excel(
+        [
+            {"Day": 1, "Topic": "Delete topic 1", "Category": "AI", "Status": "Planned"},
+            {"Day": 2, "Topic": "Delete topic 2", "Category": "AI", "Status": "Planned"},
+        ]
+    )
+
+    create_response = client.post(
+        "/campaigns/upload",
+        data={
+            "name": "Delete Planned Campaign",
+            "publish_time": "09:00",
+            "timezone": "Asia/Kolkata",
+        },
+        files={"file": ("delete-campaign.xlsx", excel_bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+    )
+
+    assert create_response.status_code == 200
+    campaign_id = create_response.json()["id"]
+
+    delete_response = client.delete(f"/campaigns/{campaign_id}")
+    assert delete_response.status_code == 200
+    assert delete_response.json()["success"] is True
+
+    list_response = client.get("/campaigns/")
+    assert list_response.status_code == 200
+    campaign_ids = [row["id"] for row in list_response.json()]
+    assert campaign_id not in campaign_ids

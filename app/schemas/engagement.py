@@ -84,8 +84,16 @@ class EngagementScanResponse(BaseModel):
     skipped: int
 
 
+class EngagementPostLink(BaseModel):
+    label: str
+    url: str
+    topic: str | None = None
+    status: str | None = None
+
+
 class EngagementDirectScanResponse(EngagementScanResponse):
     searched_by_topic: dict[str, int] = {}
+    post_links: list[EngagementPostLink] = Field(default_factory=list)
 
 
 class EngagementCommentRead(BaseModel):

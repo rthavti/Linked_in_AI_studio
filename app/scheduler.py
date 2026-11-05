@@ -1,3 +1,6 @@
+from datetime import datetime
+from datetime import timedelta
+
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
@@ -44,14 +47,28 @@ def schedule_jobs():
         run_time = (engagement_settings.run_time if engagement_settings else "09:30") or "09:30"
         run_hour, run_minute = [int(part) for part in run_time.split(":")]
 
-        scheduler.add_job(
-            run_daily_engagement_scan,
-            CronTrigger(hour=run_hour, minute=run_minute),
-            id="linkedin_engagement_daily_scan",
-            replace_existing=True,
-        )
+        engagement_jobs = [
+            ("linkedin_engagement_scan_morning", run_hour, run_minute),
+        ]
+        second_time = (datetime(2000, 1, 1, run_hour, run_minute) + timedelta(hours=12)).time()
+        engagement_jobs.append(("linkedin_engagement_scan_evening", second_time.hour, second_time.minute))
 
-        logger.info("Registered scheduler job: linkedin_engagement_daily_scan at %s", run_time)
+        for job_id, hour, minute in engagement_jobs:
+            scheduler.add_job(
+                run_daily_engagement_scan,
+                CronTrigger(hour=hour, minute=minute),
+                id=job_id,
+                replace_existing=True,
+            )
+
+        logger.info(
+            "Registered scheduler jobs: %s at %s and %s at %02d:%02d",
+            engagement_jobs[0][0],
+            run_time,
+            engagement_jobs[1][0],
+            engagement_jobs[1][1],
+            engagement_jobs[1][2],
+        )
 
         logger.info("Registered scheduler job: linkedin_publish_queue_worker every 1 minute")
 
